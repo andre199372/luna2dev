@@ -87,7 +87,13 @@ wss.on('connection', (ws) => {
       }
     } catch (err) {
       console.error('[WS] Error:', err);
-      ws.send(JSON.stringify({ status: 'error', message: err.message }));
+      ws.send(JSON.stringify({
+  command: 'create_token',
+  payload: {
+    uri: metadataUrl
+  }
+}));
+
     }
   });
 
