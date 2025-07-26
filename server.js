@@ -80,20 +80,21 @@ wss.on('connection', (ws) => {
 
         const metadataUrl = `https://gateway.pinata.cloud/ipfs/${jsonRes.data.IpfsHash}`;
 
-        // Invia al client il metadata URI
-        ws.send(JSON.stringify({ status: 'success', uri: metadataUrl, image: imageUrl }));
+        // ✅ Invia il comando al frontend per iniziare la creazione del token
+        ws.send(JSON.stringify({
+          command: 'create_token',
+          payload: {
+            uri: metadataUrl
+          }
+        }));
 
-        fs.unlinkSync(filepath); // rimuove immagine temporanea
+        // 🧼 Rimuove l'immagine temporanea
+        fs.unlinkSync(filepath);
       }
+
     } catch (err) {
       console.error('[WS] Error:', err);
-      ws.send(JSON.stringify({
-  command: 'create_token',
-  payload: {
-    uri: metadataUrl
-  }
-}));
-
+      ws.send(JSON.stringify({ status: 'error', message: err.message }));
     }
   });
 
