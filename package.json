@@ -1,7 +1,7 @@
 {
   "name": "solana-ws-server",
   "version": "1.0.0",
-  "description": "WebSocket server for Solana token launcher",
+  "description": "WebSocket server per il launcher di token Solana",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
