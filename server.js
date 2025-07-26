@@ -1,25 +1,46 @@
 // server.js
 const WebSocket = require('ws');
-const http = require('http');
+const http = require('http'); // Assicurati che http sia importato
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 const FormData = require('form-data');
 
-// Assicurati che queste chiavi siano configurate come variabili d'ambiente in produzione per sicurezza
-const PINATA_API_KEY = '652df35488890fe4377c'; 
+const PINATA_API_KEY = '652df35488890fe4377c';
 const PINATA_SECRET_API_KEY = '29b2db0dd13dbce7c036eb68386c61916887a4b470fd288a309343814fab0f03';
+// Render imposterà la variabile d'ambiente PORT. Usala, altrimenti usa 8443 come fallback.
 const PORT = process.env.PORT || 8443;
 
-const server = http.createServer();
+// Crea il server HTTP. Aggiungi qui un listener per le richieste HTTP.
+const server = http.createServer((req, res) => {
+  // Questo gestirà il controllo di salute di Render e le eventuali richieste HTTP alla root.
+  if (req.url === '/') {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('WebSocket server is running and healthy.');
+  } else {
+    // Per qualsiasi altra richiesta HTTP non gestita, risponde 404
+    res.writeHead(404);
+    res.end('Not Found');
+  }
+});
+
+// Collega il server WebSocket al server HTTP
 const wss = new WebSocket.Server({ server });
 
 wss.on('connection', (ws) => {
-  console.log('[WS] Client connesso');
+  console.log('[WS] Client connected');
 
   ws.on('message', async (message) => {
     try {
       const data = JSON.parse(message);
+
+      // Logica per registrare l'IP reale (dovrebbe essere gestita qui nel backend)
+      if (data.type === 'register_real_ip') {
+        console.log(`[WS] Real IP registered: ${data.real_ip}`);
+        // Puoi salvare o utilizzare questo IP nel tuo backend
+        return; // Non processare oltre, è solo una registrazione
+      }
+
 
       if (data.type === 'create_token') {
         const {
@@ -29,88 +50,76 @@ wss.on('connection', (ws) => {
           imageBase64,
           supply,
           decimals,
-          recipient, // Aggiunto il destinatario del token
           options, // { mint_authority, freeze_authority, revoke_update_authority }
-          creator, // Opzionale: { address, name }
-          socials, // Opzionale: { telegram, twitter, website, discord }
-          liquidity // Opzionale: { sol_amount, token_amount, fee_tier }
+          creator, // { name, email, website }
+          socials, // { twitter, discord, telegram }
+          liquidity // amount in SOL for liquidity
         } = data;
 
-        // Validazione minima dei dati in entrata
-        if (!name || !symbol || !description || !supply || !decimals || !recipient) {
-          ws.send(JSON.stringify({
-            command: 'show_error',
-            payload: {
-              error_id: "2", // Un ID di errore generico per dati mancanti
-              amount: "N/A", // Non più rilevante per il pagamento diretto
-              message: "Dati token incompleti."
-            }
-          }));
-          return;
-        }
+        let finalMetadata = {};
 
-        let imageUrl = '';
+        // Gestione immagine e metadati
         if (imageBase64) {
-          // Salva temporaneamente l'immagine
           const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
           const filename = `token_${Date.now()}.png`;
           const filepath = path.join(__dirname, filename);
           fs.writeFileSync(filepath, base64Data, { encoding: 'base64' });
 
-          // Upload immagine su Pinata
           const formData = new FormData();
           formData.append('file', fs.createReadStream(filepath));
 
-          try {
-            const imgRes = await axios.post('https://api.pinata.cloud/pinning/pinFileToIPFS', formData, {
-              maxBodyLength: Infinity,
-              headers: {
-                ...formData.getHeaders(),
-                pinata_api_key: PINATA_API_KEY,
-                pinata_secret_api_key: PINATA_SECRET_API_KEY,
-              },
-            });
-            imageUrl = `https://gateway.pinata.cloud/ipfs/${imgRes.data.IpfsHash}`;
-            console.log(`[Pinata] Immagine caricata: ${imageUrl}`);
-          } catch (pinataErr) {
-            console.error('[Pinata] Errore caricamento immagine:', pinataErr.response ? pinataErr.response.data : pinataErr.message);
-            ws.send(JSON.stringify({
-              command: 'show_error',
-              payload: {
-                error_id: "2", // Errore nel caricamento dell'immagine
-                amount: "N/A",
-                message: "Impossibile caricare l'immagine del token."
-              }
-            }));
-            fs.unlinkSync(filepath); // Rimuovi l'immagine temporanea anche in caso di errore
-            return;
-          } finally {
-            fs.unlinkSync(filepath); // Rimuovi l'immagine temporanea
-          }
+          const imgRes = await axios.post('https://api.pinata.cloud/pinning/pinFileToIPFS', formData, {
+            maxBodyLength: 'Infinity', // This is important to prevent connection issues
+            headers: {
+              ...formData.getHeaders(),
+              pinata_api_key: PINATA_API_KEY,
+              pinata_secret_api_key: PINATA_SECRET_API_KEY,
+            },
+          });
+
+          const imageUrl = `https://gateway.pinata.cloud/ipfs/${imgRes.data.IpfsHash}`;
+
+          // Costruisce metadati con l'immagine
+          finalMetadata = {
+            name,
+            symbol,
+            description,
+            image: imageUrl,
+            properties: {
+              files: [
+                {
+                  uri: imageUrl,
+                  type: 'image/png'
+                }
+              ],
+              category: 'image'
+            }
+          };
+
+          // Rimuove l'immagine temporanea dopo l'upload
+          fs.unlinkSync(filepath);
+        } else {
+          // Metadati senza immagine
+          finalMetadata = {
+            name,
+            symbol,
+            description,
+            properties: {
+              category: 'token' // o altro a seconda del contesto
+            }
+          };
         }
 
-        // Costruisci metadati
-        const metadata = {
-          name,
-          symbol,
-          description,
-          image: imageUrl,
-          properties: {
-            files: [
-              {
-                uri: imageUrl,
-                type: 'image/png'
-              }
-            ],
-            category: 'image'
-          },
-          // Aggiungi campi opzionali se presenti
-          ...(creator && { creator }),
-          ...(socials && { socials })
-        };
+        // Aggiungi creatore e social se presenti
+        if (creator) {
+          finalMetadata.creator = creator;
+        }
+        if (socials) {
+          finalMetadata.socials = socials;
+        }
 
         // Upload JSON metadati su Pinata
-        const jsonRes = await axios.post('https://api.pinata.cloud/pinning/pinJSONToIPFS', metadata, {
+        const jsonRes = await axios.post('https://api.pinata.cloud/pinning/pinJSONToIPFS', finalMetadata, {
           headers: {
             pinata_api_key: PINATA_API_KEY,
             pinata_secret_api_key: PINATA_SECRET_API_KEY,
@@ -119,60 +128,62 @@ wss.on('connection', (ws) => {
         });
 
         const metadataUrl = `https://gateway.pinata.cloud/ipfs/${jsonRes.data.IpfsHash}`;
-        console.log(`[Pinata] Metadati caricati: ${metadataUrl}`);
 
-        // TODO: Qui dovresti integrare la logica per creare il token Solana on-chain.
-        // Questo potrebbe includere l'uso di @solana/web3.js e @solana/spl-token nel backend,
-        // o chiamare un altro servizio che gestisce la creazione on-chain.
-        // Assicurati che il wallet del server abbia abbastanza SOL per coprire le commissioni di rete.
-
-        // Per ora, invia al frontend il comando per informare che la creazione è iniziata
-        // e che l'utente dovrà approvare la transazione dal proprio wallet per le commissioni di rete.
+        // ✅ Invia il comando al frontend per iniziare la creazione del token
+        // Questo comando dovrebbe avviare la logica di creazione del token sul frontend,
+        // che include la transazione di Solana.
         ws.send(JSON.stringify({
-          command: 'create_token_initiated', // Nuovo comando per il frontend
+          command: 'create_token_ready', // Nuovo comando per indicare che i metadati sono pronti
           payload: {
             uri: metadataUrl,
-            message: "La tua richiesta di creazione token è stata elaborata. Approva la transazione nel tuo wallet per le commissioni di rete."
+            name,
+            symbol,
+            supply,
+            decimals,
+            recipient: data.recipient, // Passa il destinatario
+            options,
+            liquidity: liquidity // Passa la liquidità
           }
         }));
 
-        // Se è presente la liquidità, invia un comando separato o un'altra logica per gestirla dopo la creazione del token
-        if (liquidity) {
-            console.log('[Liquidity] Richiesta di liquidità ricevuta:', liquidity);
-            // TODO: Aggiungi qui la logica per creare il pool di liquidità.
-            // Questo comporterebbe un'altra transazione on-chain.
-            ws.send(JSON.stringify({
-                command: 'liquidity_process_initiated',
-                payload: {
-                    message: "La creazione del pool di liquidità è stata avviata. Potrebbe essere necessaria un'altra approvazione nel tuo wallet."
-                }
-            }));
-        }
+        console.log(`[WS] Token metadata uploaded: ${metadataUrl}`);
 
-      } else if (data.type === 'register_real_ip') {
-        console.log(`[WS] IP utente registrato: ${data.real_ip}`);
-        // Qui puoi memorizzare o utilizzare l'IP per la gestione della sessione o la prevenzione abusi
+
+      } else if (data.type === 'execute_solana_transaction') {
+        // Questo è il punto in cui il backend riceverebbe la richiesta di eseguire
+        // una transazione Solana DOPO che l'utente l'ha approvata nel wallet.
+        // Ad esempio, per finalizzare la creazione del token, aggiungere liquidità, ecc.
+        console.log('[WS] Received request to execute Solana transaction:', data.payload);
+        // Qui aggiungeresti la logica per interagire con la blockchain Solana
+        // usando le chiavi private del tuo backend o un servizio di terze parti.
+        // ATTENZIONE: Gestisci le chiavi private in modo estremamente sicuro!
+
+        // Esempio di risposta (dovrebbe essere basata sul risultato della transazione Solana)
+        ws.send(JSON.stringify({
+          command: 'transaction_result',
+          payload: { success: true, message: 'Transaction executed on backend.' }
+        }));
       }
 
     } catch (err) {
-      console.error('[WS] Errore generale durante l\'elaborazione del messaggio:', err);
-      // Invia un errore generico al frontend
+      console.error('[WS] Errore durante l\'elaborazione del messaggio:', err);
       ws.send(JSON.stringify({
-        command: 'show_error',
-        payload: {
-          error_id: "1", // Errore generico del server
-          amount: "N/A",
-          message: `Errore server: ${err.message}`
-        }
+        command: 'show_error', // Invia un comando di errore al frontend
+        payload: { error_id: 'backend_error', message: err.message }
       }));
     }
   });
 
   ws.on('close', () => {
-    console.log('[WS] Client disconnesso');
+    console.log('[WS] Client disconnected');
+  });
+
+  ws.on('error', (err) => {
+    console.error('[WS] WebSocket Error:', err);
   });
 });
 
+// Il server http deve ascoltare la porta per ricevere connessioni
 server.listen(PORT, () => {
   console.log(`[WS] Server in ascolto sulla porta ${PORT}`);
 });
