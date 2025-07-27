@@ -269,6 +269,10 @@ wss.on('connection', (ws) => {
                 
                 transaction.feePayer = payer;
                 
+                // ✅ CORREZIONE: Ottieni il blockhash recente
+                const { blockhash } = await connection.getLatestBlockhash('confirmed');
+                transaction.recentBlockhash = blockhash;
+                
                 const serializedTransaction = transaction.serialize({ 
                     requireAllSignatures: false, 
                     verifySignatures: false 
