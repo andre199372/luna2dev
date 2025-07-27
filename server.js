@@ -29,8 +29,8 @@ try {
     const metaplex = require('@metaplex-foundation/mpl-token-metadata');
     console.log('[SERVER - STARTUP] Libreria @metaplex-foundation/mpl-token-metadata caricata.');
 
-    // Il nome corretto della funzione, basato sui log di errore, è questo.
-    const functionNameToUse = 'createMetadataAccountV3'; 
+    // Usa l'import più specifico e corretto
+    const functionNameToUse = 'createCreateMetadataAccountV3Instruction'; 
     if (typeof metaplex[functionNameToUse] === 'function') {
         createMetadataInstructionFunction = metaplex[functionNameToUse];
         console.log(`[SERVER - STARTUP] Trovata funzione di creazione metadati valida: "${functionNameToUse}"`);
@@ -139,56 +139,102 @@ wss.on('connection', (ws) => {
 
                 const lamports = await connection.getMinimumBalanceForRentExemption(MINT_SIZE);
 
-                const createAccountInstruction = SystemProgram.createAccount({ fromPubkey: payer, newAccountPubkey: mint, space: MINT_SIZE, lamports, programId: TOKEN_PROGRAM_ID, });
-                const initializeMintInstruction = createInitializeMintInstruction(mint, decimals, mintAuthority, freezeAuthority, TOKEN_PROGRAM_ID);
+                const createAccountInstruction = SystemProgram.createAccount({ 
+                    fromPubkey: payer, 
+                    newAccountPubkey: mint, 
+                    space: MINT_SIZE, 
+                    lamports, 
+                    programId: TOKEN_PROGRAM_ID, 
+                });
+                
+                const initializeMintInstruction = createInitializeMintInstruction(
+                    mint, 
+                    decimals, 
+                    mintAuthority, 
+                    freezeAuthority, 
+                    TOKEN_PROGRAM_ID
+                );
+                
                 const associatedTokenAccount = await getAssociatedTokenAddress(mint, payer);
-                const createAtaInstruction = createAssociatedTokenAccountInstruction(payer, associatedTokenAccount, payer, mint);
-                const mintToInstruction = createMintToInstruction(mint, associatedTokenAccount, mintAuthority, supply * Math.pow(10, decimals));
+                const createAtaInstruction = createAssociatedTokenAccountInstruction(
+                    payer, 
+                    associatedTokenAccount, 
+                    payer, 
+                    mint
+                );
                 
-                const metadataPDA = PublicKey.findProgramAddressSync([Buffer.from('metadata'), METADATA_PROGRAM_ID.toBuffer(), mint.toBuffer()], METADATA_PROGRAM_ID)[0];
+                const mintToInstruction = createMintToInstruction(
+                    mint, 
+                    associatedTokenAccount, 
+                    mintAuthority, 
+                    supply * Math.pow(10, decimals)
+                );
                 
-                const accounts = {
-                    metadata: metadataPDA,
-                    mint: mint,
-                    mintAuthority: mintAuthority,
-                    payer: payer,
-                    updateAuthority: mintAuthority,
-                    systemProgram: SystemProgram.programId, 
-                };
+                // ✅ CORREZIONE: Calcolo corretto del PDA per i metadati
+                const metadataPDA = PublicKey.findProgramAddressSync([
+                    Buffer.from('metadata'), 
+                    METADATA_PROGRAM_ID.toBuffer(), 
+                    mint.toBuffer()
+                ], METADATA_PROGRAM_ID)[0];
                 
-                const args = {
-                    createMetadataAccountArgsV3: {
-                        data: {
-                            name: name,
-                            symbol: symbol,
-                            uri: metadataUrl,
-                            creators: null,
-                            sellerFeeBasisPoints: 0,
-                            uses: null,
-                            collection: null,
-                        },
-                        isMutable: !options.revoke_update_authority,
-                        collectionDetails: null,
+                // ✅ CORREZIONE: Usa la funzione corretta con la struttura degli account corretta
+                const createMetadataInstruction = createMetadataInstructionFunction(
+                    {
+                        metadata: metadataPDA,
+                        mint: mint,
+                        mintAuthority: mintAuthority,
+                        payer: payer,
+                        updateAuthority: mintAuthority,
+                        systemProgram: SystemProgram.programId,
+                        rent: new PublicKey("SysvarRent111111111111111111111111111111111")
+                    },
+                    {
+                        createMetadataAccountArgsV3: {
+                            data: {
+                                name: name,
+                                symbol: symbol,
+                                uri: metadataUrl,
+                                creators: null,
+                                sellerFeeBasisPoints: 0,
+                                uses: null,
+                                collection: null,
+                            },
+                            isMutable: !options.revoke_update_authority,
+                            collectionDetails: null,
+                        }
                     }
-                };
-
-                // ✅ CORREZIONE FINALE: La funzione si aspetta due argomenti separati, non un oggetto unico.
-                const createMetadataInstruction = createMetadataInstructionFunction(accounts, args);
-
+                );
 
                 // 3. Creazione e invio della transazione serializzata
-                const transaction = new Transaction().add(createAccountInstruction, initializeMintInstruction, createAtaInstruction, mintToInstruction, createMetadataInstruction);
+                const transaction = new Transaction().add(
+                    createAccountInstruction, 
+                    initializeMintInstruction, 
+                    createAtaInstruction, 
+                    mintToInstruction, 
+                    createMetadataInstruction
+                );
+                
                 transaction.feePayer = payer;
                 
-                const serializedTransaction = transaction.serialize({ requireAllSignatures: false, verifySignatures: false }).toString('base64');
+                const serializedTransaction = transaction.serialize({ 
+                    requireAllSignatures: false, 
+                    verifySignatures: false 
+                }).toString('base64');
+                
                 console.log('[SERVER] Transazione creata e serializzata. Invio al client.');
 
-                ws.send(JSON.stringify({ command: 'transaction_ready', payload: { serializedTransaction: serializedTransaction } }));
+                ws.send(JSON.stringify({ 
+                    command: 'transaction_ready', 
+                    payload: { serializedTransaction: serializedTransaction } 
+                }));
 
             } catch (err) {
                 console.error('[SERVER] Errore durante la costruzione della transazione:', err);
                 console.error(err.stack); // Aggiunge uno stack trace più dettagliato
-                ws.send(JSON.stringify({ command: 'error', payload: { message: `Errore del server: ${err.message}` } }));
+                ws.send(JSON.stringify({ 
+                    command: 'error', 
+                    payload: { message: `Errore del server: ${err.message}` } 
+                }));
             }
         }
     });
