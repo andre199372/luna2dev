@@ -20,10 +20,24 @@ const {
     MINT_SIZE,
     TOKEN_PROGRAM_ID
 } = require('@solana/spl-token');
+
+// ===== BLOCCO DI DEBUG PER METAPLEX =====
+// Aggiungiamo un controllo più robusto per capire perché la libreria non viene caricata.
+let metaplex;
+try {
+    metaplex = require('@metaplex-foundation/mpl-token-metadata');
+    console.log('[SERVER] Libreria Metaplex caricata con successo. Contenuto:', metaplex);
+} catch (e) {
+    console.error('[SERVER] ERRORE CRITICO: Impossibile caricare @metaplex-foundation/mpl-token-metadata. L\'errore è:', e.message);
+    // Se fallisce qui, significa che il pacchetto non è installato.
+    // Controlla che package.json sia stato caricato (push) su GitHub.
+}
+
+// Estraiamo le funzioni DOPO aver verificato che la libreria sia stata caricata.
 const {
     createCreateMetadataAccountV3Instruction,
     PROGRAM_ID: METADATA_PROGRAM_ID
-} = require('@metaplex-foundation/mpl-token-metadata');
+} = metaplex || {}; // Usiamo un oggetto vuoto per evitare crash se 'metaplex' è undefined
 
 // --- CREDENZIALI PINATA ---
 const PINATA_API_KEY = '652df35488890fe4377c';
@@ -97,7 +111,6 @@ wss.on('connection', (ws) => {
 
                 // 1. Caricamento Metadati su IPFS (Pinata)
                 let metadataUrl = '';
-                // ... (la logica di upload IPFS rimane la stessa)
                 const finalMetadata = { name, symbol, description };
                 if (imageBase64) {
                     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
@@ -145,7 +158,8 @@ wss.on('connection', (ws) => {
                 // 3. Creazione e invio della transazione serializzata
                 const transaction = new Transaction().add(createAccountInstruction, initializeMintInstruction, createAtaInstruction, mintToInstruction, createMetadataInstruction);
                 transaction.feePayer = payer;
-
+                // La recentBlockhash verrà aggiunta dal client prima di firmare
+                
                 const serializedTransaction = transaction.serialize({ requireAllSignatures: false, verifySignatures: false }).toString('base64');
                 console.log('[SERVER] Transazione creata e serializzata. Invio al client.');
 
