@@ -38,7 +38,9 @@ try {
     ];
 
     for (const name of possibleFunctionNames) {
-        if (typeof metaplex[name] === 'function') {
+        // CORREZIONE: La libreria usa "getters", quindi typeof non funziona.
+        // Controlliamo semplicemente se la proprietà esiste.
+        if (metaplex[name]) {
             createMetadataInstructionFunction = metaplex[name];
             console.log(`[SERVER - STARTUP] Trovata funzione di creazione metadati valida: "${name}"`);
             break;
