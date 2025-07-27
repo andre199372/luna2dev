@@ -162,6 +162,7 @@
 
                 try {
                     // Call API instead of WebSocket
+                    console.log('Sending request to API...');
                     const response = await fetch('/api/create-token', {
                         method: 'POST',
                         headers: {
@@ -170,12 +171,25 @@
                         body: JSON.stringify(tokenData)
                     });
 
-                    const result = await response.json();
+                    console.log('Response status:', response.status);
+                    console.log('Response headers:', response.headers);
 
-                    if (!result.success) {
-                        throw new Error(result.error);
+                    const responseText = await response.text();
+                    console.log('Raw response:', responseText);
+
+                    let result;
+                    try {
+                        result = JSON.parse(responseText);
+                    } catch (parseError) {
+                        console.error('JSON parse error:', parseError);
+                        throw new Error(`Server response is not valid JSON: ${responseText.substring(0, 100)}...`);
                     }
 
+                    if (!result.success) {
+                        throw new Error(result.error || 'Unknown server error');
+                    }
+
+                    console.log('Transaction received, signing...');
                     // Sign and send transaction
                     await signAndSendTransaction(result.serializedTransaction);
 
@@ -192,17 +206,67 @@
                     const transaction = solanaWeb3.Transaction.from(serializedBuffer);
                     transaction.partialSign(mintKeypair);
                     
+                    console.log('Sending transaction...');
                     const { signature } = await provider.signAndSendTransaction(transaction);
-                    await new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta')).confirmTransaction(signature, 'confirmed');
+                    console.log('Transaction sent with signature:', signature);
                     
+                    // Show immediate success with signature
                     Swal.fire({ 
-                        title: 'Successo!', 
-                        html: `Token creato!<br><a href="https://solscan.io/tx/${signature}" target="_blank">Vedi su Solscan</a>`, 
-                        icon: 'success' 
+                        title: 'Transazione Inviata!', 
+                        html: `
+                            <p>La transazione è stata inviata con successo!</p>
+                            <p><strong>Signature:</strong> ${signature}</p>
+                            <p>La conferma potrebbe richiedere alcuni minuti.</p>
+                            <br>
+                            <a href="https://solscan.io/tx/${signature}" target="_blank" class="btn" style="display: inline-block; background-color: #6c63ff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Vedi su Solscan</a>
+                        `, 
+                        icon: 'success',
+                        confirmButtonText: 'Chiudi',
+                        allowOutsideClick: true
                     });
+                    
+                    // Try to confirm in background with shorter timeout
+                    try {
+                        console.log('Attempting to confirm transaction...');
+                        const connection = new solanaWeb3.Connection(
+                            solanaWeb3.clusterApiUrl('mainnet-beta'), 
+                            'confirmed'
+                        );
+                        
+                        // Use shorter timeout and different confirmation strategy
+                        const confirmation = await Promise.race([
+                            connection.confirmTransaction(signature, 'confirmed'),
+                            new Promise((_, reject) => 
+                                setTimeout(() => reject(new Error('Confirmation timeout')), 15000)
+                            )
+                        ]);
+                        
+                        console.log('Transaction confirmed:', confirmation);
+                        
+                        // Update success message if confirmed
+                        Swal.fire({ 
+                            title: 'Token Creato con Successo!', 
+                            html: `
+                                <p>✅ Il tuo token è stato creato e confermato!</p>
+                                <p><strong>Signature:</strong> ${signature}</p>
+                                <br>
+                                <a href="https://solscan.io/tx/${signature}" target="_blank" class="btn" style="display: inline-block; background-color: #6c63ff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Vedi su Solscan</a>
+                            `, 
+                            icon: 'success'
+                        });
+                        
+                    } catch (confirmError) {
+                        console.log('Confirmation failed or timed out, but transaction was sent:', confirmError.message);
+                        // Don't show error since transaction was already sent successfully
+                    }
+                    
                 } catch (err) {
                     console.error('Errore di firma:', err);
-                    Swal.fire('Errore', err.message || 'Transazione annullata o fallita.', 'error');
+                    if (err.message.includes('User rejected')) {
+                        Swal.fire('Transazione Annullata', 'Hai annullato la transazione.', 'info');
+                    } else {
+                        Swal.fire('Errore', err.message || 'Errore durante la firma della transazione.', 'error');
+                    }
                 }
             }
         });
