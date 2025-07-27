@@ -29,12 +29,11 @@ try {
     const metaplex = require('@metaplex-foundation/mpl-token-metadata');
     console.log('[SERVER - STARTUP] Libreria @metaplex-foundation/mpl-token-metadata caricata.');
 
-    // Tentativo di trovare la funzione corretta controllando più nomi possibili
+    // CORREZIONE: Array di nomi possibili corretto, senza l'errore di battitura "createCreate".
     const possibleFunctionNames = [
-        'createCreateMetadataAccountV3Instruction',
-        'createCreateMetadataAccountV3', // Questo è il nome corretto nelle versioni più recenti
-        'createCreateMetadataAccountV2',
-        'createCreateMetadataAccount'
+        'createMetadataAccountV3Instruction',
+        'createMetadataAccountV3',
+        'createCreateMetadataAccountV3Instruction' // Mantenuto per retrocompatibilità in caso di versioni strane
     ];
 
     for (const name of possibleFunctionNames) {
@@ -45,12 +44,10 @@ try {
         }
     }
     
-    // CORREZIONE: La variabile si chiama MPL_TOKEN_METADATA_PROGRAM_ID
     METADATA_PROGRAM_ID = metaplex.MPL_TOKEN_METADATA_PROGRAM_ID;
 
     if (!createMetadataInstructionFunction) {
         console.error('[SERVER - STARTUP] ERRORE CRITICO: Nessuna funzione valida per la creazione dei metadati è stata trovata nella libreria Metaplex.');
-        // Log aggiuntivo per vedere cosa contiene la libreria
         console.log('[SERVER - DEBUG] Contenuto della libreria Metaplex:', Object.keys(metaplex));
     }
 
