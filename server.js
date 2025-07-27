@@ -22,13 +22,10 @@ const {
     TOKEN_PROGRAM_ID,
 } = require('@solana/spl-token');
 
-// ✅ Importazione della funzione dalla libreria Metaplex
-const { 
-    createCreateMetadataAccountV3Instruction 
-} = require('@metaplex-foundation/mpl-token-metadata');
+// ✅ SOLUZIONE: Importiamo l'intera libreria per evitare problemi di destructuring
+const mplTokenMetadata = require('@metaplex-foundation/mpl-token-metadata');
 
-// ✅ SOLUZIONE: Definiamo l'ID del programma Metaplex come una costante,
-//    questo previene problemi di importazione dall'ambiente del server.
+// ✅ Definiamo l'ID del programma Metaplex come una costante.
 const METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
 
 
@@ -158,7 +155,8 @@ async function buildTokenTransaction(params) {
         },
     };
 
-    const createMetadataInstruction = createCreateMetadataAccountV3Instruction(accounts, args);
+    // ✅ CORREZIONE: Chiamiamo la funzione come proprietà dell'oggetto importato
+    const createMetadataInstruction = mplTokenMetadata.createCreateMetadataAccountV3Instruction(accounts, args);
 
     const transaction = new Transaction().add(
         SystemProgram.createAccount({ fromPubkey: payer, newAccountPubkey: mint, space: MINT_SIZE, lamports, programId: TOKEN_PROGRAM_ID }),
