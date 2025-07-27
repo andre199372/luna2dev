@@ -1,7 +1,8 @@
 // /api/server.js
 
 // Importazioni delle librerie necessarie
-const WebSocket = require('ws');
+const { createServer } = require('http');
+const { WebSocketServer } = require('ws');
 const axios = require('axios');
 const FormData = require('form-data');
 const {
@@ -20,25 +21,24 @@ const {
     MINT_SIZE,
     TOKEN_PROGRAM_ID,
 } = require('@solana/spl-token');
-
-// Importazione corretta e robusta dalla libreria Metaplex
 const mplTokenMetadata = require('@metaplex-foundation/mpl-token-metadata');
 
-// Definiamo l'ID del programma Metaplex come una costante pubblica
 const METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
 
-console.log('[SERVER - STARTUP] ✅ Librerie Solana e Metaplex caricate con successo.');
+console.log('[SERVER - STARTUP] Librerie caricate.');
 
 // --- CREDENZIALI PINATA ---
 const PINATA_API_KEY = process.env.PINATA_API_KEY || '652df35488890fe4377c';
 const PINATA_SECRET_API_KEY = process.env.PINATA_SECRET_API_KEY || '29b2db0dd13dbce7c036eb68386c61916887a4b470fd288a309343814fab0f03';
 
-// Crea un'istanza del WebSocket Server, ma senza associarla a un server HTTP subito.
-const wss = new WebSocket.Server({ noServer: true });
+// Crea un'istanza del WebSocket Server senza un server HTTP.
+// Vercel fornirà il server.
+const wss = new WebSocketServer({ noServer: true });
 
 wss.on('connection', (ws) => {
-    console.log('[WS] Client connesso');
-    ws.on('message', async (message) => handleWebSocketMessage(ws, message));
+    console.log('[WS] Client connesso con successo.');
+    
+    ws.on('message', (message) => handleWebSocketMessage(ws, message));
     ws.on('close', () => console.log('[WS] Client disconnesso'));
     ws.on('error', (err) => console.error('[WS] Errore WebSocket:', err));
 });
@@ -48,7 +48,9 @@ async function handleWebSocketMessage(ws, message) {
     try {
         data = JSON.parse(message);
     } catch (e) {
-        return ws.send(JSON.stringify({ command: 'error', payload: { message: 'Invalid JSON' } }));
+        console.error('[WS] Errore parsing JSON:', e);
+        ws.send(JSON.stringify({ command: 'error', payload: { message: 'Invalid JSON' } }));
+        return;
     }
 
     if (data.type === 'create_token') {
@@ -62,7 +64,7 @@ async function handleTokenCreation(ws, data) {
         const { name, symbol, description, imageBase64, supply, decimals, recipient, mintAddress, options } = data;
 
         if (!name || !symbol || !supply || !recipient || !mintAddress) {
-            throw new Error('Campi obbligatori mancanti');
+            throw new Error('Campi obbligatori mancanti.');
         }
 
         const metadataUrl = await uploadMetadataToIPFS(name, symbol, description, imageBase64);
@@ -77,7 +79,7 @@ async function handleTokenCreation(ws, data) {
         }));
 
     } catch (err) {
-        console.error('[SERVER] Errore creazione token:', err);
+        console.error('[SERVER] Errore durante la creazione del token:', err);
         ws.send(JSON.stringify({ command: 'error', payload: { message: err.message } }));
     }
 }
@@ -160,25 +162,17 @@ async function buildTokenTransaction(params) {
     transaction.feePayer = payer;
     transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
 
-    const serializedTransaction = transaction.serialize({ requireAllSignatures: false, verifySignatures: false }).toString('base64');
-    
-    return serializedTransaction;
+    return transaction.serialize({ requireAllSignatures: false, verifySignatures: false }).toString('base64');
 }
 
-// ✅ CORREZIONE FINALE per Vercel
-// Esporta una funzione handler che Vercel può usare
-module.exports = (req, res) => {
-    // Se la richiesta non è un upgrade a WebSocket, non fare nulla e distruggi il socket.
-    // Questo è il modo più robusto per gestire le funzioni serverless di Vercel per i WebSocket.
-    if (!res.socket.server.upgrade) {
-        res.end();
-        return;
-    }
-
-    // Altrimenti, gestisci l'upgrade come prima
-    res.socket.server.on('upgrade', (request, socket, head) => {
-        wss.handleUpgrade(request, socket, head, (ws) => {
-            wss.emit('connection', ws, request);
-        });
+// ✅ Questo è l'handler serverless per Vercel
+const server = createServer();
+server.on('upgrade', (request, socket, head) => {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request);
     });
-};
+});
+
+// Vercel non usa server.listen(), quindi lo rimuoviamo.
+// Esportiamo il server per essere usato dalla piattaforma.
+module.exports = server;
