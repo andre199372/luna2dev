@@ -22,22 +22,21 @@ const {
 } = require('@solana/spl-token');
 
 // ===== BLOCCO DI DEBUG AVANZATO PER METAPLEX =====
-let createCreateMetadataAccountV3Instruction;
+let createMetadataInstructionFunction; // Nome generico per la funzione
 let METADATA_PROGRAM_ID;
 
 try {
     const metaplex = require('@metaplex-foundation/mpl-token-metadata');
     console.log('[SERVER] Libreria @metaplex-foundation/mpl-token-metadata caricata con successo.');
 
-    // Accede alle proprietà in modo diretto e sicuro
-    createCreateMetadataAccountV3Instruction = metaplex.createCreateMetadataAccountV3Instruction;
-    // Correzione: La libreria esporta MPL_TOKEN_METADATA_PROGRAM_ID, non PROGRAM_ID.
+    // Correzione: Il nome della funzione è cambiato nelle versioni recenti.
+    createMetadataInstructionFunction = metaplex.createCreateMetadataAccountV3Instruction || metaplex.createCreateMetadataAccountV3;
     METADATA_PROGRAM_ID = metaplex.MPL_TOKEN_METADATA_PROGRAM_ID;
 
-    if (!createCreateMetadataAccountV3Instruction) {
-        console.error('[SERVER] ERRORE: La funzione "createCreateMetadataAccountV3Instruction" non è stata trovata.');
+    if (!createMetadataInstructionFunction) {
+        console.error('[SERVER] ERRORE: Nessuna funzione valida per la creazione dei metadati è stata trovata.');
     } else {
-        console.log('[SERVER] La funzione "createCreateMetadataAccountV3Instruction" è stata trovata.');
+        console.log('[SERVER] La funzione di creazione dei metadati è stata trovata.');
     }
 
     if (!METADATA_PROGRAM_ID) {
@@ -102,8 +101,8 @@ wss.on('connection', (ws) => {
                 ws.send(JSON.stringify({ command: 'error', payload: { message: errorMessage } }));
                 return;
             }
-             if (!METADATA_PROGRAM_ID || !createCreateMetadataAccountV3Instruction) {
-                const errorMessage = "METADATA_PROGRAM_ID non è stato importato correttamente. Controlla le dipendenze e i log del server.";
+             if (!METADATA_PROGRAM_ID || !createMetadataInstructionFunction) {
+                const errorMessage = "Libreria Metaplex non importata correttamente. Controlla le dipendenze e i log del server.";
                 console.error(`[SERVER] ${errorMessage}`);
                 ws.send(JSON.stringify({ command: 'error', payload: { message: errorMessage } }));
                 return;
@@ -160,7 +159,7 @@ wss.on('connection', (ws) => {
                 const mintToInstruction = createMintToInstruction(mint, associatedTokenAccount, mintAuthority, supply * Math.pow(10, decimals));
                 
                 const metadataPDA = PublicKey.findProgramAddressSync([Buffer.from('metadata'), METADATA_PROGRAM_ID.toBuffer(), mint.toBuffer()], METADATA_PROGRAM_ID)[0];
-                const createMetadataInstruction = createCreateMetadataAccountV3Instruction({ metadata: metadataPDA, mint: mint, mintAuthority: mintAuthority, payer: payer, updateAuthority: mintAuthority, }, {
+                const createMetadataInstruction = createMetadataInstructionFunction({ metadata: metadataPDA, mint: mint, mintAuthority: mintAuthority, payer: payer, updateAuthority: mintAuthority, }, {
                     createMetadataAccountArgsV3: {
                         data: { name: name, symbol: symbol, uri: metadataUrl, creators: null, sellerFeeBasisPoints: 0, uses: null, collection: null, },
                         isMutable: !options.revoke_update_authority, collectionDetails: null,
