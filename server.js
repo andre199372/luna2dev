@@ -185,7 +185,7 @@ wss.on('connection', (ws) => {
                 console.log(`[SERVER] Metadati caricati su IPFS: ${metadataUrl}`);
 
                 // 2. Costruzione della Transazione
-                const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+                const connection = new Connection(clusterApiUrl('mainnet-beta'), 'confirmed');
                 const mint = new PublicKey(mintAddress);
                 const payer = new PublicKey(recipient);
                 const mintAuthority = payer;
