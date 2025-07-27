@@ -29,18 +29,30 @@ try {
     const metaplex = require('@metaplex-foundation/mpl-token-metadata');
     console.log('[SERVER - STARTUP] Libreria @metaplex-foundation/mpl-token-metadata caricata.');
 
-    // Usiamo direttamente il nome che i log hanno confermato esistere.
-    createMetadataInstructionFunction = metaplex.createCreateMetadataAccountV3;
+    // Tentativo di trovare la funzione corretta controllando più nomi possibili
+    const possibleFunctionNames = [
+        'createCreateMetadataAccountV3Instruction',
+        'createCreateMetadataAccountV3',
+        'createCreateMetadataAccountV2',
+        'createCreateMetadataAccount'
+    ];
+
+    for (const name of possibleFunctionNames) {
+        if (typeof metaplex[name] === 'function') {
+            createMetadataInstructionFunction = metaplex[name];
+            console.log(`[SERVER - STARTUP] Trovata funzione di creazione metadati valida: "${name}"`);
+            break;
+        }
+    }
+    
     METADATA_PROGRAM_ID = metaplex.MPL_TOKEN_METADATA_PROGRAM_ID;
 
     if (!createMetadataInstructionFunction) {
-        console.error('[SERVER - STARTUP] ERRORE: La funzione "createCreateMetadataAccountV3" non è stata trovata.');
-    } else {
-        console.log('[SERVER - STARTUP] La funzione di creazione dei metadati è stata trovata.');
+        console.error('[SERVER - STARTUP] ERRORE CRITICO: Nessuna funzione valida per la creazione dei metadati è stata trovata nella libreria Metaplex.');
     }
 
     if (!METADATA_PROGRAM_ID) {
-        console.error('[SERVER - STARTUP] ERRORE: "METADATA_PROGRAM_ID" non è stato trovato.');
+        console.error('[SERVER - STARTUP] ERRORE CRITICO: "METADATA_PROGRAM_ID" non è stato trovato.');
     } else {
         console.log('[SERVER - STARTUP] "METADATA_PROGRAM_ID" è stato trovato.');
     }
