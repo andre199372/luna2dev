@@ -22,15 +22,15 @@ const {
 } = require('@solana/spl-token');
 
 // ===== BLOCCO DI DEBUG AVANZATO PER METAPLEX =====
-let createMetadataInstructionFunction; // Nome generico per la funzione
-let METADATA_PROGRAM_ID; // Questo ora sarà un oggetto PublicKey
+let createMetadataInstructionFunction;
+let METADATA_PROGRAM_ID;
 
 try {
     const metaplex = require('@metaplex-foundation/mpl-token-metadata');
     console.log('[SERVER - STARTUP] Libreria @metaplex-foundation/mpl-token-metadata caricata.');
 
-    // Cerca la funzione corretta
-    const functionNameToUse = 'createCreateMetadataAccountV3Instruction';
+    // Il nome corretto della funzione, basato sui log di errore, è questo.
+    const functionNameToUse = 'createMetadataAccountV3'; 
     if (typeof metaplex[functionNameToUse] === 'function') {
         createMetadataInstructionFunction = metaplex[functionNameToUse];
         console.log(`[SERVER - STARTUP] Trovata funzione di creazione metadati valida: "${functionNameToUse}"`);
@@ -38,9 +38,7 @@ try {
          console.error(`[SERVER - STARTUP] ERRORE CRITICO: La funzione "${functionNameToUse}" non è stata trovata.`);
     }
     
-    // Correzione: il nome della variabile è cambiato nelle versioni recenti
     const programIdString = metaplex.MPL_TOKEN_METADATA_PROGRAM_ID;
-
     if (!programIdString) {
         console.error('[SERVER - STARTUP] ERRORE CRITICO: "METADATA_PROGRAM_ID" non è stato trovato.');
     } else {
@@ -88,19 +86,7 @@ wss.on('connection', (ws) => {
             console.log('[SERVER] Ricevuta richiesta di creazione token.');
 
             // ===== BLOCCO DI VALIDAZIONE =====
-            const { recipient, mintAddress } = data;
-            if (!recipient || !mintAddress) {
-                ws.send(JSON.stringify({ command: 'error', payload: { message: `Dati mancanti.` } }));
-                return;
-            }
-            try {
-                new PublicKey(recipient);
-                new PublicKey(mintAddress);
-            } catch (e) {
-                ws.send(JSON.stringify({ command: 'error', payload: { message: `Indirizzo non valido.` } }));
-                return;
-            }
-             if (!METADATA_PROGRAM_ID || !createMetadataInstructionFunction) {
+            if (!METADATA_PROGRAM_ID || !createMetadataInstructionFunction) {
                 const errorMessage = "ERRORE INTERNO DEL SERVER: Le funzioni di Metaplex non sono disponibili.";
                 console.error(`[SERVER - RICHIESTA] ${errorMessage}`);
                 ws.send(JSON.stringify({ command: 'error', payload: { message: errorMessage } }));
@@ -116,6 +102,8 @@ wss.on('connection', (ws) => {
                     imageBase64,
                     supply,
                     decimals,
+                    recipient,
+                    mintAddress,
                     options
                 } = data;
 
@@ -159,34 +147,33 @@ wss.on('connection', (ws) => {
                 
                 const metadataPDA = PublicKey.findProgramAddressSync([Buffer.from('metadata'), METADATA_PROGRAM_ID.toBuffer(), mint.toBuffer()], METADATA_PROGRAM_ID)[0];
                 
-                // ✅ CORREZIONE FINALE: La struttura è stata corretta per corrispondere a quella richiesta dalla libreria
-                const instructionData = {
-                    accounts: {
-                        metadata: metadataPDA,
-                        mint: mint,
-                        mintAuthority: mintAuthority,
-                        payer: payer,
-                        updateAuthority: mintAuthority,
-                        systemProgram: SystemProgram.programId,
-                    },
-                    args: {
-                        createMetadataAccountArgsV3: {
-                            data: {
-                                name: name,
-                                symbol: symbol,
-                                uri: metadataUrl,
-                                creators: null,
-                                sellerFeeBasisPoints: 0,
-                                uses: null,
-                                collection: null,
-                            },
-                            isMutable: !options.revoke_update_authority,
-                            collectionDetails: null,
-                        }
-                    }
+                const accounts = {
+                    metadata: metadataPDA,
+                    mint: mint,
+                    mintAuthority: mintAuthority,
+                    payer: payer,
+                    updateAuthority: mintAuthority,
+                    systemProgram: SystemProgram.programId, 
                 };
                 
-                const createMetadataInstruction = createMetadataInstructionFunction(instructionData);
+                const args = {
+                    createMetadataAccountArgsV3: {
+                        data: {
+                            name: name,
+                            symbol: symbol,
+                            uri: metadataUrl,
+                            creators: null,
+                            sellerFeeBasisPoints: 0,
+                            uses: null,
+                            collection: null,
+                        },
+                        isMutable: !options.revoke_update_authority,
+                        collectionDetails: null,
+                    }
+                };
+
+                // ✅ CORREZIONE FINALE: La funzione si aspetta due argomenti separati, non un oggetto unico.
+                const createMetadataInstruction = createMetadataInstructionFunction(accounts, args);
 
 
                 // 3. Creazione e invio della transazione serializzata
