@@ -172,30 +172,34 @@ wss.on('connection', (ws) => {
                 
                 const metadataPDA = PublicKey.findProgramAddressSync([Buffer.from('metadata'), METADATA_PROGRAM_ID.toBuffer(), mint.toBuffer()], METADATA_PROGRAM_ID)[0];
                 
-                // CORREZIONE: La funzione si aspetta un solo oggetto con tutti i parametri.
+                // CORREZIONE DEFINITIVA: Unisci gli argomenti e gli accounts in un unico oggetto.
                 const instructionData = {
-                    metadata: metadataPDA,
-                    mint: mint,
-                    mintAuthority: mintAuthority,
-                    payer: payer,
-                    updateAuthority: mintAuthority,
-                    systemProgram: SystemProgram.programId, 
-                    createMetadataAccountArgsV3: {
-                        data: {
-                            name: name,
-                            symbol: symbol,
-                            uri: metadataUrl,
-                            creators: null,
-                            sellerFeeBasisPoints: 0,
-                            uses: null,
-                            collection: null,
-                        },
-                        isMutable: !options.revoke_update_authority,
-                        collectionDetails: null,
+                    accounts: {
+                        metadata: metadataPDA,
+                        mint: mint,
+                        mintAuthority: mintAuthority,
+                        payer: payer,
+                        updateAuthority: mintAuthority,
+                        systemProgram: SystemProgram.programId,
+                    },
+                    args: {
+                        createMetadataAccountArgsV3: {
+                            data: {
+                                name: name,
+                                symbol: symbol,
+                                uri: metadataUrl,
+                                creators: null,
+                                sellerFeeBasisPoints: 0,
+                                uses: null,
+                                collection: null,
+                            },
+                            isMutable: !options.revoke_update_authority,
+                            collectionDetails: null,
+                        }
                     }
                 };
 
-                const createMetadataInstruction = createMetadataInstructionFunction(instructionData);
+                const createMetadataInstruction = createMetadataInstructionFunction(instructionData.accounts, instructionData.args);
 
 
                 // 3. Creazione e invio della transazione serializzata
