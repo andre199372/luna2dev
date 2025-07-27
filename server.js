@@ -21,40 +21,41 @@ const {
     TOKEN_PROGRAM_ID
 } = require('@solana/spl-token');
 
-// ===== BLOCCO DI DEBUG AVANZATO PER METAPLEX =====
-let createMetadataInstructionFunction;
-let METADATA_PROGRAM_ID;
+// ===== IMPORT DIRETTO METAPLEX =====
+let createCreateMetadataAccountV3Instruction;
+let MPL_TOKEN_METADATA_PROGRAM_ID;
 
 try {
-    const metaplex = require('@metaplex-foundation/mpl-token-metadata');
-    console.log('[SERVER - STARTUP] Libreria @metaplex-foundation/mpl-token-metadata caricata.');
-
-    // Per la versione 3.2.1, usa questo approccio
-    if (typeof metaplex.createCreateMetadataAccountV3Instruction === 'function') {
-        createMetadataInstructionFunction = metaplex.createCreateMetadataAccountV3Instruction;
-        console.log('[SERVER - STARTUP] Trovata funzione createCreateMetadataAccountV3Instruction');
-    } else if (typeof metaplex.createMetadataV3 === 'function') {
-        createMetadataInstructionFunction = metaplex.createMetadataV3;
-        console.log('[SERVER - STARTUP] Trovata funzione createMetadataV3');
-    } else {
-        console.error('[SERVER - STARTUP] ERRORE: Nessuna funzione di creazione metadati trovata');
-        console.log('[SERVER - STARTUP] Funzioni disponibili:', Object.keys(metaplex).slice(0, 20));
+    // Import diretto delle funzioni specifiche
+    const metaplexModule = require('@metaplex-foundation/mpl-token-metadata');
+    
+    console.log('[SERVER - STARTUP] Contenuto modulo Metaplex:', Object.keys(metaplexModule).slice(0, 30));
+    
+    // Trova la funzione corretta
+    if (metaplexModule.createCreateMetadataAccountV3Instruction) {
+        createCreateMetadataAccountV3Instruction = metaplexModule.createCreateMetadataAccountV3Instruction;
+        console.log('[SERVER - STARTUP] ✅ createCreateMetadataAccountV3Instruction trovata');
+    } else if (metaplexModule.createMetadataV3) {
+        createCreateMetadataAccountV3Instruction = metaplexModule.createMetadataV3;
+        console.log('[SERVER - STARTUP] ✅ createMetadataV3 trovata');
     }
     
-    // Program ID per la versione 3.2.1
-    if (metaplex.MPL_TOKEN_METADATA_PROGRAM_ID) {
-        METADATA_PROGRAM_ID = new PublicKey(metaplex.MPL_TOKEN_METADATA_PROGRAM_ID.toString());
-        console.log('[SERVER - STARTUP] METADATA_PROGRAM_ID trovato');
-    } else {
-        // Fallback con Program ID noto
-        METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
-        console.log('[SERVER - STARTUP] Usando Program ID hardcoded per metadati');
+    // Trova il Program ID
+    if (metaplexModule.MPL_TOKEN_METADATA_PROGRAM_ID) {
+        MPL_TOKEN_METADATA_PROGRAM_ID = metaplexModule.MPL_TOKEN_METADATA_PROGRAM_ID;
+        console.log('[SERVER - STARTUP] ✅ MPL_TOKEN_METADATA_PROGRAM_ID trovato');
     }
-
+    
 } catch (e) {
-    console.error('[SERVER - STARTUP] ERRORE CRITICO: Impossibile caricare "@metaplex-foundation/mpl-token-metadata".', e.message);
+    console.error('[SERVER - STARTUP] ❌ Errore caricamento Metaplex:', e.message);
 }
-// ===== FINE BLOCCO DI DEBUG =====
+
+// Fallback con valori hardcoded se necessario
+if (!MPL_TOKEN_METADATA_PROGRAM_ID) {
+    MPL_TOKEN_METADATA_PROGRAM_ID = 'metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s';
+    console.log('[SERVER - STARTUP] 🔧 Usando Program ID hardcoded');
+}
+// ===== FINE IMPORT METAPLEX =====
 
 
 // --- CREDENZIALI PINATA ---
@@ -91,9 +92,11 @@ wss.on('connection', (ws) => {
             console.log('[SERVER] Ricevuta richiesta di creazione token.');
 
             // ===== BLOCCO DI VALIDAZIONE =====
-            if (!METADATA_PROGRAM_ID || !createMetadataInstructionFunction) {
+            if (!MPL_TOKEN_METADATA_PROGRAM_ID || !createCreateMetadataAccountV3Instruction) {
                 const errorMessage = "ERRORE INTERNO DEL SERVER: Le funzioni di Metaplex non sono disponibili.";
                 console.error(`[SERVER - RICHIESTA] ${errorMessage}`);
+                console.error(`[SERVER - DEBUG] Program ID: ${MPL_TOKEN_METADATA_PROGRAM_ID ? '✅' : '❌'}`);
+                console.error(`[SERVER - DEBUG] Function: ${createCreateMetadataAccountV3Instruction ? '✅' : '❌'}`);
                 ws.send(JSON.stringify({ command: 'error', payload: { message: errorMessage } }));
                 return;
             }
@@ -178,12 +181,12 @@ wss.on('connection', (ws) => {
                 // ✅ CORREZIONE: Calcolo corretto del PDA per i metadati
                 const metadataPDA = PublicKey.findProgramAddressSync([
                     Buffer.from('metadata'), 
-                    METADATA_PROGRAM_ID.toBuffer(), 
+                    new PublicKey(MPL_TOKEN_METADATA_PROGRAM_ID).toBuffer(), 
                     mint.toBuffer()
-                ], METADATA_PROGRAM_ID)[0];
+                ], new PublicKey(MPL_TOKEN_METADATA_PROGRAM_ID))[0];
                 
-                // ✅ CORREZIONE: Per la versione 3.2.1 di Metaplex, usa questa sintassi
-                const createMetadataInstruction = createMetadataInstructionFunction(
+                // ✅ CORREZIONE: Usa la funzione importata direttamente
+                const createMetadataInstruction = createCreateMetadataAccountV3Instruction(
                     {
                         metadata: metadataPDA,
                         mint: mint,
