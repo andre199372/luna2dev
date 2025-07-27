@@ -1,8 +1,13 @@
 {
+  "functions": {
+    "api/create-token.js": {
+      "maxDuration": 30
+    }
+  },
   "rewrites": [
     {
-      "source": "/(.*)",
-      "destination": "/api/server"
+      "source": "/",
+      "destination": "/index.html"
     }
   ]
 }
