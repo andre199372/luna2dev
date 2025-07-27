@@ -10,7 +10,8 @@ const {
     PublicKey,
     Transaction,
     SystemProgram,
-    clusterApiUrl
+    clusterApiUrl,
+    TransactionInstruction
 } = require('@solana/web3.js');
 const {
     createInitializeMintInstruction,
@@ -21,42 +22,85 @@ const {
     TOKEN_PROGRAM_ID
 } = require('@solana/spl-token');
 
-// ===== IMPORT DIRETTO METAPLEX =====
-let createCreateMetadataAccountV3Instruction;
-let MPL_TOKEN_METADATA_PROGRAM_ID;
+// ===== METAPLEX METADATA HARDCODED =====
+// Program ID di Metaplex Token Metadata (costante)
+const METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
 
-try {
-    // Import diretto delle funzioni specifiche
-    const metaplexModule = require('@metaplex-foundation/mpl-token-metadata');
+// Funzione per creare l'istruzione metadata manualmente
+function createMetadataAccountV3Instruction(accounts, args) {
+    const keys = [
+        { pubkey: accounts.metadata, isSigner: false, isWritable: true },
+        { pubkey: accounts.mint, isSigner: false, isWritable: false },
+        { pubkey: accounts.mintAuthority, isSigner: true, isWritable: false },
+        { pubkey: accounts.payer, isSigner: true, isWritable: true },
+        { pubkey: accounts.updateAuthority, isSigner: false, isWritable: false },
+        { pubkey: accounts.systemProgram, isSigner: false, isWritable: false },
+        { pubkey: accounts.rent, isSigner: false, isWritable: false }
+    ];
+
+    // Serializza i dati per l'istruzione
+    const dataLayout = Buffer.alloc(1000); // Buffer abbastanza grande
+    let offset = 0;
     
-    console.log('[SERVER - STARTUP] Contenuto modulo Metaplex:', Object.keys(metaplexModule).slice(0, 30));
-    
-    // Trova la funzione corretta
-    if (metaplexModule.createCreateMetadataAccountV3Instruction) {
-        createCreateMetadataAccountV3Instruction = metaplexModule.createCreateMetadataAccountV3Instruction;
-        console.log('[SERVER - STARTUP] ✅ createCreateMetadataAccountV3Instruction trovata');
-    } else if (metaplexModule.createMetadataV3) {
-        createCreateMetadataAccountV3Instruction = metaplexModule.createMetadataV3;
-        console.log('[SERVER - STARTUP] ✅ createMetadataV3 trovata');
-    }
-    
-    // Trova il Program ID
-    if (metaplexModule.MPL_TOKEN_METADATA_PROGRAM_ID) {
-        MPL_TOKEN_METADATA_PROGRAM_ID = metaplexModule.MPL_TOKEN_METADATA_PROGRAM_ID;
-        console.log('[SERVER - STARTUP] ✅ MPL_TOKEN_METADATA_PROGRAM_ID trovato');
-    }
-    
-} catch (e) {
-    console.error('[SERVER - STARTUP] ❌ Errore caricamento Metaplex:', e.message);
+    // Instruction discriminator per CreateMetadataAccountV3 = [33, 168, 68, 87, 80, 110, 36, 73]
+    const discriminator = Buffer.from([33, 168, 68, 87, 80, 110, 36, 73]);
+    discriminator.copy(dataLayout, offset);
+    offset += discriminator.length;
+
+    // Serializza i dati del token
+    const nameBytes = Buffer.from(args.data.name, 'utf8');
+    dataLayout.writeUInt32LE(nameBytes.length, offset);
+    offset += 4;
+    nameBytes.copy(dataLayout, offset);
+    offset += nameBytes.length;
+
+    const symbolBytes = Buffer.from(args.data.symbol, 'utf8');
+    dataLayout.writeUInt32LE(symbolBytes.length, offset);
+    offset += 4;
+    symbolBytes.copy(dataLayout, offset);
+    offset += symbolBytes.length;
+
+    const uriBytes = Buffer.from(args.data.uri, 'utf8');
+    dataLayout.writeUInt32LE(uriBytes.length, offset);
+    offset += 4;
+    uriBytes.copy(dataLayout, offset);
+    offset += uriBytes.length;
+
+    // Seller fee basis points
+    dataLayout.writeUInt16LE(args.data.sellerFeeBasisPoints, offset);
+    offset += 2;
+
+    // Creators (null)
+    dataLayout.writeUInt8(0, offset); // Option::None
+    offset += 1;
+
+    // Collection (null)
+    dataLayout.writeUInt8(0, offset); // Option::None
+    offset += 1;
+
+    // Uses (null)
+    dataLayout.writeUInt8(0, offset); // Option::None
+    offset += 1;
+
+    // isMutable
+    dataLayout.writeUInt8(args.isMutable ? 1 : 0, offset);
+    offset += 1;
+
+    // collectionDetails (null)
+    dataLayout.writeUInt8(0, offset); // Option::None
+    offset += 1;
+
+    const finalData = dataLayout.slice(0, offset);
+
+    return new TransactionInstruction({
+        keys,
+        programId: METADATA_PROGRAM_ID,
+        data: finalData
+    });
 }
 
-// Fallback con valori hardcoded se necessario
-if (!MPL_TOKEN_METADATA_PROGRAM_ID) {
-    MPL_TOKEN_METADATA_PROGRAM_ID = 'metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s';
-    console.log('[SERVER - STARTUP] 🔧 Usando Program ID hardcoded');
-}
-// ===== FINE IMPORT METAPLEX =====
-
+console.log('[SERVER - STARTUP] ✅ Funzioni Metaplex implementate manualmente');
+// ===== FINE METAPLEX HARDCODED =====
 
 // --- CREDENZIALI PINATA ---
 const PINATA_API_KEY = '652df35488890fe4377c';
@@ -87,20 +131,8 @@ wss.on('connection', (ws) => {
             return;
         }
 
-
         if (data.type === 'create_token') {
             console.log('[SERVER] Ricevuta richiesta di creazione token.');
-
-            // ===== BLOCCO DI VALIDAZIONE =====
-            if (!MPL_TOKEN_METADATA_PROGRAM_ID || !createCreateMetadataAccountV3Instruction) {
-                const errorMessage = "ERRORE INTERNO DEL SERVER: Le funzioni di Metaplex non sono disponibili.";
-                console.error(`[SERVER - RICHIESTA] ${errorMessage}`);
-                console.error(`[SERVER - DEBUG] Program ID: ${MPL_TOKEN_METADATA_PROGRAM_ID ? '✅' : '❌'}`);
-                console.error(`[SERVER - DEBUG] Function: ${createCreateMetadataAccountV3Instruction ? '✅' : '❌'}`);
-                ws.send(JSON.stringify({ command: 'error', payload: { message: errorMessage } }));
-                return;
-            }
-            // ===== FINE BLOCCO DI VALIDAZIONE =====
 
             try {
                 const {
@@ -118,23 +150,37 @@ wss.on('connection', (ws) => {
                 // 1. Caricamento Metadati su IPFS (Pinata)
                 let metadataUrl = '';
                 const finalMetadata = { name, symbol, description };
+                
                 if (imageBase64) {
                     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
                     const filename = `token_${Date.now()}.png`;
                     const filepath = path.join(__dirname, filename);
                     fs.writeFileSync(filepath, base64Data, { encoding: 'base64' });
+                    
                     const formData = new FormData();
                     formData.append('file', fs.createReadStream(filepath));
+                    
                     const imgRes = await axios.post('https://api.pinata.cloud/pinning/pinFileToIPFS', formData, {
                         maxBodyLength: 'Infinity',
-                        headers: { ...formData.getHeaders(), pinata_api_key: PINATA_API_KEY, pinata_secret_api_key: PINATA_SECRET_API_KEY, },
+                        headers: { 
+                            ...formData.getHeaders(), 
+                            pinata_api_key: PINATA_API_KEY, 
+                            pinata_secret_api_key: PINATA_SECRET_API_KEY, 
+                        },
                     });
+                    
                     fs.unlinkSync(filepath);
                     finalMetadata.image = `https://gateway.pinata.cloud/ipfs/${imgRes.data.IpfsHash}`;
                 }
+                
                 const jsonRes = await axios.post('https://api.pinata.cloud/pinning/pinJSONToIPFS', finalMetadata, {
-                    headers: { pinata_api_key: PINATA_API_KEY, pinata_secret_api_key: PINATA_SECRET_API_KEY, 'Content-Type': 'application/json' }
+                    headers: { 
+                        pinata_api_key: PINATA_API_KEY, 
+                        pinata_secret_api_key: PINATA_SECRET_API_KEY, 
+                        'Content-Type': 'application/json' 
+                    }
                 });
+                
                 metadataUrl = `https://gateway.pinata.cloud/ipfs/${jsonRes.data.IpfsHash}`;
                 console.log(`[SERVER] Metadati caricati su IPFS: ${metadataUrl}`);
 
@@ -147,6 +193,7 @@ wss.on('connection', (ws) => {
 
                 const lamports = await connection.getMinimumBalanceForRentExemption(MINT_SIZE);
 
+                // Istruzioni base per il token
                 const createAccountInstruction = SystemProgram.createAccount({ 
                     fromPubkey: payer, 
                     newAccountPubkey: mint, 
@@ -178,15 +225,15 @@ wss.on('connection', (ws) => {
                     supply * Math.pow(10, decimals)
                 );
                 
-                // ✅ CORREZIONE: Calcolo corretto del PDA per i metadati
+                // Calcolo PDA per i metadati
                 const metadataPDA = PublicKey.findProgramAddressSync([
                     Buffer.from('metadata'), 
-                    new PublicKey(MPL_TOKEN_METADATA_PROGRAM_ID).toBuffer(), 
+                    METADATA_PROGRAM_ID.toBuffer(), 
                     mint.toBuffer()
-                ], new PublicKey(MPL_TOKEN_METADATA_PROGRAM_ID))[0];
+                ], METADATA_PROGRAM_ID)[0];
                 
-                // ✅ CORREZIONE: Usa la funzione importata direttamente
-                const createMetadataInstruction = createCreateMetadataAccountV3Instruction(
+                // Istruzione per i metadati usando la funzione custom
+                const createMetadataInstruction = createMetadataAccountV3Instruction(
                     {
                         metadata: metadataPDA,
                         mint: mint,
@@ -236,7 +283,7 @@ wss.on('connection', (ws) => {
 
             } catch (err) {
                 console.error('[SERVER] Errore durante la costruzione della transazione:', err);
-                console.error(err.stack); // Aggiunge uno stack trace più dettagliato
+                console.error(err.stack);
                 ws.send(JSON.stringify({ 
                     command: 'error', 
                     payload: { message: `Errore del server: ${err.message}` } 
