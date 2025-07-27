@@ -28,22 +28,49 @@ let METADATA_PROGRAM_ID;
 try {
     const metaplex = require('@metaplex-foundation/mpl-token-metadata');
     console.log('[SERVER - STARTUP] Libreria @metaplex-foundation/mpl-token-metadata caricata.');
+    
+    // Debug: stampa tutte le funzioni disponibili
+    console.log('[SERVER - STARTUP] Funzioni disponibili in metaplex:', Object.keys(metaplex));
 
-    // Usa l'import più specifico e corretto
-    const functionNameToUse = 'createCreateMetadataAccountV3Instruction'; 
-    if (typeof metaplex[functionNameToUse] === 'function') {
-        createMetadataInstructionFunction = metaplex[functionNameToUse];
-        console.log(`[SERVER - STARTUP] Trovata funzione di creazione metadati valida: "${functionNameToUse}"`);
-    } else {
-         console.error(`[SERVER - STARTUP] ERRORE CRITICO: La funzione "${functionNameToUse}" non è stata trovata.`);
+    // Prova diversi nomi possibili
+    const possibleNames = [
+        'createCreateMetadataAccountV3Instruction',
+        'createMetadataAccountV3',
+        'createCreateMetadataAccountInstruction',
+        'CreateMetadataAccountV3'
+    ];
+    
+    for (const name of possibleNames) {
+        if (typeof metaplex[name] === 'function') {
+            createMetadataInstructionFunction = metaplex[name];
+            console.log(`[SERVER - STARTUP] Trovata funzione di creazione metadati valida: "${name}"`);
+            break;
+        }
     }
     
-    const programIdString = metaplex.MPL_TOKEN_METADATA_PROGRAM_ID;
-    if (!programIdString) {
-        console.error('[SERVER - STARTUP] ERRORE CRITICO: "METADATA_PROGRAM_ID" non è stato trovato.');
-    } else {
-        METADATA_PROGRAM_ID = new PublicKey(programIdString);
-        console.log('[SERVER - STARTUP] "METADATA_PROGRAM_ID" è stato trovato e convertito in PublicKey.');
+    if (!createMetadataInstructionFunction) {
+        console.error('[SERVER - STARTUP] ERRORE: Nessuna funzione di creazione metadati trovata');
+    }
+    
+    // Prova diversi nomi per PROGRAM_ID
+    const possibleProgramIds = [
+        'MPL_TOKEN_METADATA_PROGRAM_ID',
+        'METADATA_PROGRAM_ID',
+        'TOKEN_METADATA_PROGRAM_ID'
+    ];
+    
+    for (const pidName of possibleProgramIds) {
+        if (metaplex[pidName]) {
+            METADATA_PROGRAM_ID = new PublicKey(metaplex[pidName]);
+            console.log(`[SERVER - STARTUP] "${pidName}" trovato e convertito in PublicKey.`);
+            break;
+        }
+    }
+    
+    if (!METADATA_PROGRAM_ID) {
+        // Fallback con Program ID hardcoded
+        METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
+        console.log('[SERVER - STARTUP] Usando Program ID hardcoded per metadati');
     }
 
 } catch (e) {
