@@ -171,14 +171,28 @@ wss.on('connection', (ws) => {
                 
                 const metadataPDA = PublicKey.findProgramAddressSync([Buffer.from('metadata'), METADATA_PROGRAM_ID.toBuffer(), mint.toBuffer()], METADATA_PROGRAM_ID)[0];
                 
-                // CORREZIONE FINALE: La struttura dell'oggetto dei dati è stata appiattita.
-                const accounts = { metadata: metadataPDA, mint: mint, mintAuthority: mintAuthority, payer: payer, updateAuthority: mintAuthority, };
-                const dataArgs = {
-                    data: { name: name, symbol: symbol, uri: metadataUrl, creators: null, sellerFeeBasisPoints: 0, uses: null, collection: null, },
-                    isMutable: !options.revoke_update_authority,
-                    collectionDetails: null,
+                // CORREZIONE FINALE: La funzione si aspetta un solo oggetto contenente sia gli accounts che i data args.
+                const instructionArgs = {
+                    metadata: metadataPDA,
+                    mint: mint,
+                    mintAuthority: mintAuthority,
+                    payer: payer,
+                    updateAuthority: mintAuthority,
+                    createMetadataAccountArgsV3: {
+                        data: {
+                            name: name,
+                            symbol: symbol,
+                            uri: metadataUrl,
+                            creators: null,
+                            sellerFeeBasisPoints: 0,
+                            uses: null,
+                            collection: null,
+                        },
+                        isMutable: !options.revoke_update_authority,
+                        collectionDetails: null,
+                    }
                 };
-                const createMetadataInstruction = createMetadataInstructionFunction(accounts, { createMetadataAccountArgsV3: dataArgs });
+                const createMetadataInstruction = createMetadataInstructionFunction(instructionArgs);
 
 
                 // 3. Creazione e invio della transazione serializzata
