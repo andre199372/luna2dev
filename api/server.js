@@ -1,4 +1,4 @@
-// server.js
+// /api/server.js
 const WebSocket = require('ws');
 const http = require('http');
 const axios = require('axios');
@@ -173,7 +173,7 @@ module.exports = (req, res) => {
             wss.emit('connection', ws, req);
         });
     } else {
-        // Risponde alle normali richieste HTTP
-        res.status(200).send('Server WebSocket attivo.');
+        // Risponde alle normali richieste HTTP con un 404 per evitare confusione
+        res.status(404).send('Not Found');
     }
 };
