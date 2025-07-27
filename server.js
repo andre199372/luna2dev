@@ -28,47 +28,25 @@ let METADATA_PROGRAM_ID;
 try {
     const metaplex = require('@metaplex-foundation/mpl-token-metadata');
     console.log('[SERVER - STARTUP] Libreria @metaplex-foundation/mpl-token-metadata caricata.');
-    
-    // Debug: stampa tutte le funzioni disponibili
-    console.log('[SERVER - STARTUP] Funzioni disponibili in metaplex:', Object.keys(metaplex));
 
-    // Prova diversi nomi possibili
-    const possibleNames = [
-        'createCreateMetadataAccountV3Instruction',
-        'createMetadataAccountV3',
-        'createCreateMetadataAccountInstruction',
-        'CreateMetadataAccountV3'
-    ];
-    
-    for (const name of possibleNames) {
-        if (typeof metaplex[name] === 'function') {
-            createMetadataInstructionFunction = metaplex[name];
-            console.log(`[SERVER - STARTUP] Trovata funzione di creazione metadati valida: "${name}"`);
-            break;
-        }
-    }
-    
-    if (!createMetadataInstructionFunction) {
+    // Per la versione 3.2.1, usa questo approccio
+    if (typeof metaplex.createCreateMetadataAccountV3Instruction === 'function') {
+        createMetadataInstructionFunction = metaplex.createCreateMetadataAccountV3Instruction;
+        console.log('[SERVER - STARTUP] Trovata funzione createCreateMetadataAccountV3Instruction');
+    } else if (typeof metaplex.createMetadataV3 === 'function') {
+        createMetadataInstructionFunction = metaplex.createMetadataV3;
+        console.log('[SERVER - STARTUP] Trovata funzione createMetadataV3');
+    } else {
         console.error('[SERVER - STARTUP] ERRORE: Nessuna funzione di creazione metadati trovata');
+        console.log('[SERVER - STARTUP] Funzioni disponibili:', Object.keys(metaplex).slice(0, 20));
     }
     
-    // Prova diversi nomi per PROGRAM_ID
-    const possibleProgramIds = [
-        'MPL_TOKEN_METADATA_PROGRAM_ID',
-        'METADATA_PROGRAM_ID',
-        'TOKEN_METADATA_PROGRAM_ID'
-    ];
-    
-    for (const pidName of possibleProgramIds) {
-        if (metaplex[pidName]) {
-            METADATA_PROGRAM_ID = new PublicKey(metaplex[pidName]);
-            console.log(`[SERVER - STARTUP] "${pidName}" trovato e convertito in PublicKey.`);
-            break;
-        }
-    }
-    
-    if (!METADATA_PROGRAM_ID) {
-        // Fallback con Program ID hardcoded
+    // Program ID per la versione 3.2.1
+    if (metaplex.MPL_TOKEN_METADATA_PROGRAM_ID) {
+        METADATA_PROGRAM_ID = new PublicKey(metaplex.MPL_TOKEN_METADATA_PROGRAM_ID.toString());
+        console.log('[SERVER - STARTUP] METADATA_PROGRAM_ID trovato');
+    } else {
+        // Fallback con Program ID noto
         METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
         console.log('[SERVER - STARTUP] Usando Program ID hardcoded per metadati');
     }
@@ -204,7 +182,7 @@ wss.on('connection', (ws) => {
                     mint.toBuffer()
                 ], METADATA_PROGRAM_ID)[0];
                 
-                // ✅ CORREZIONE: Usa la funzione corretta con la struttura degli account corretta
+                // ✅ CORREZIONE: Per la versione 3.2.1 di Metaplex, usa questa sintassi
                 const createMetadataInstruction = createMetadataInstructionFunction(
                     {
                         metadata: metadataPDA,
@@ -216,19 +194,17 @@ wss.on('connection', (ws) => {
                         rent: new PublicKey("SysvarRent111111111111111111111111111111111")
                     },
                     {
-                        createMetadataAccountArgsV3: {
-                            data: {
-                                name: name,
-                                symbol: symbol,
-                                uri: metadataUrl,
-                                creators: null,
-                                sellerFeeBasisPoints: 0,
-                                uses: null,
-                                collection: null,
-                            },
-                            isMutable: !options.revoke_update_authority,
-                            collectionDetails: null,
-                        }
+                        data: {
+                            name: name,
+                            symbol: symbol,
+                            uri: metadataUrl,
+                            creators: null,
+                            sellerFeeBasisPoints: 0,
+                            uses: null,
+                            collection: null,
+                        },
+                        isMutable: !options.revoke_update_authority,
+                        collectionDetails: null,
                     }
                 );
 
