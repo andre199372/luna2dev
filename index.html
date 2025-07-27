@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luna Launch - Create Solana Token</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #000; color: #fff; margin: 0; display: flex; flex-direction: column; min-height: 100vh; }
+        header, footer { text-align: center; padding: 20px; border-bottom: 1px solid #333; }
+        footer { border-bottom: none; border-top: 1px solid #333; margin-top: auto; }
+        main { flex: 1; display: flex; justify-content: center; padding: 40px 20px; }
+        .container { max-width: 600px; width: 100%; }
+        h1 { margin-bottom: 10px; }
+        p { color: #aaa; margin-bottom: 40px; }
+        .form { background-color: #1a1a1a; border-radius: 16px; padding: 30px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-weight: 500; margin-bottom: 8px; }
+        input, textarea { width: 100%; background-color: #2c2c2c; border: 1px solid #444; border-radius: 8px; color: white; padding: 12px; font-size: 16px; box-sizing: border-box; }
+        .checkbox-group { display: flex; align-items: center; gap: 10px; }
+        .btn { display: block; width: 100%; background-color: #6c63ff; color: white; border: none; border-radius: 30px; padding: 15px; font-size: 16px; font-weight: 600; cursor: pointer; transition: background-color 0.3s, opacity 0.3s; }
+        .btn:disabled { background-color: #555; opacity: 0.7; cursor: not-allowed; }
+        .btn:hover:not(:disabled) { background-color: #5a52d5; }
+        .upload-area { border: 2px dashed #444; border-radius: 10px; padding: 20px; text-align: center; cursor: pointer; }
+        #logo-preview { max-width: 100px; max-height: 100px; margin-top: 10px; border-radius: 8px; display: none; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Solana Token Creator</h1>
+    </header>
+    <main>
+        <div class="container">
+            <p>Crea il tuo token Solana in pochi semplici passaggi.</p>
+            <form class="form" id="token-form">
+                <div class="form-group">
+                    <label for="tokenName">Nome Token *</label>
+                    <input required type="text" id="tokenName" placeholder="Es: Pepe Coin">
+                </div>
+                <div class="form-group">
+                    <label for="tokenSymbol">Simbolo Token *</label>
+                    <input type="text" id="tokenSymbol" placeholder="Es: PEPE" required>
+                </div>
+                <div class="form-group">
+                    <label for="tokenDecimals">Decimali *</label>
+                    <input type="number" id="tokenDecimals" value="9" required>
+                </div>
+                <div class="form-group">
+                    <label for="tokenSupply">Fornitura *</label>
+                    <input type="number" id="tokenSupply" required value="1000000">
+                </div>
+                <div class="form-group">
+                    <label for="tokenDescription">Descrizione *</label>
+                    <textarea id="tokenDescription" rows="3" placeholder="Descrivi il tuo token" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Logo (Opzionale)</label>
+                    <div class="upload-area" id="logoDropzone">
+                        <span>Trascina o clicca per caricare</span>
+                        <input type="file" id="logoUpload" accept="image/*" style="display: none;">
+                        <img id="logo-preview" />
+                    </div>
+                </div>
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="revokeUpdate" />
+                    <label for="revokeUpdate">Rendi i metadati immutabili</label>
+                </div>
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="revokeFreeze" checked />
+                    <label for="revokeFreeze">Disabilita il congelamento</label>
+                </div>
+                <div class="form-group">
+                    <label for="tokenRecipient">Destinatario dei Token (il tuo wallet) *</label>
+                    <input type="text" id="tokenRecipient" placeholder="Connetti il wallet per compilare automaticamente" required>
+                </div>
+                <button type="button" class="btn" id="connectWalletBtn">Connetti Wallet</button>
+                <button type="submit" class="btn" id="launchTokenBtn" style="margin-top: 10px;">Lancia Token</button>
+            </form>
+        </div>
+    </main>
+    <footer>
+        <p>© Luna Launch 2025</p>
+    </footer>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const connectWalletBtn = document.getElementById('connectWalletBtn');
+            const launchTokenBtn = document.getElementById('launchTokenBtn');
+            const tokenRecipientInput = document.getElementById('tokenRecipient');
+            const logoDropzone = document.getElementById('logoDropzone');
+            const logoUpload = document.getElementById('logoUpload');
+            const logoPreview = document.getElementById('logo-preview');
+            let mintKeypair;
+            let logoBase64 = null;
+
+            const getProvider = () => window.phantom?.solana;
+            
+            connectWalletBtn.addEventListener('click', async () => {
+                const provider = getProvider();
+                if (provider) {
+                    try {
+                        const resp = await provider.connect();
+                        const publicKey = resp.publicKey.toString();
+                        connectWalletBtn.textContent = `Connesso: ${publicKey.slice(0, 4)}...${publicKey.slice(-4)}`;
+                        tokenRecipientInput.value = publicKey;
+                    } catch (err) { 
+                        Swal.fire('Errore', 'Connessione al wallet rifiutata.', 'error'); 
+                    }
+                } else { 
+                    window.open('https://phantom.app/', '_blank'); 
+                }
+            });
+
+            logoDropzone.addEventListener('click', () => logoUpload.click());
+            logoUpload.addEventListener('change', (e) => {
+                if (e.target.files.length) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        logoBase64 = event.target.result;
+                        logoPreview.src = logoBase64;
+                        logoPreview.style.display = 'block';
+                    };
+                    reader.readAsDataURL(e.target.files[0]);
+                }
+            });
+
+            document.getElementById('token-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const provider = getProvider();
+                if (!provider || !provider.publicKey) {
+                    return Swal.fire('Wallet non connesso', 'Per favore connetti il tuo wallet Phantom.', 'warning');
+                }
+
+                // Generate mint keypair
+                mintKeypair = solanaWeb3.Keypair.generate();
+
+                const tokenData = {
+                    name: document.getElementById('tokenName').value,
+                    symbol: document.getElementById('tokenSymbol').value,
+                    description: document.getElementById('tokenDescription').value,
+                    imageBase64: logoBase64,
+                    supply: parseFloat(document.getElementById('tokenSupply').value),
+                    decimals: parseInt(document.getElementById('tokenDecimals').value, 10),
+                    recipient: tokenRecipientInput.value,
+                    mintAddress: mintKeypair.publicKey.toBase58(),
+                    options: {
+                        freeze_authority: !document.getElementById('revokeFreeze').checked,
+                        revoke_update_authority: document.getElementById('revokeUpdate').checked,
+                    }
+                };
+
+                // Show loading
+                Swal.fire({ 
+                    title: 'In attesa...', 
+                    text: 'Preparo la transazione. Approva nel tuo wallet.', 
+                    icon: 'info', 
+                    allowOutsideClick: false, 
+                    didOpen: () => Swal.showLoading() 
+                });
+
+                try {
+                    // Call API instead of WebSocket
+                    const response = await fetch('/api/create-token', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(tokenData)
+                    });
+
+                    const result = await response.json();
+
+                    if (!result.success) {
+                        throw new Error(result.error);
+                    }
+
+                    // Sign and send transaction
+                    await signAndSendTransaction(result.serializedTransaction);
+
+                } catch (error) {
+                    console.error('Errore durante la creazione del token:', error);
+                    Swal.fire('Errore', error.message || 'Errore durante la creazione del token.', 'error');
+                }
+            });
+
+            async function signAndSendTransaction(serializedTransaction) {
+                const provider = getProvider();
+                try {
+                    const serializedBuffer = Uint8Array.from(atob(serializedTransaction), c => c.charCodeAt(0));
+                    const transaction = solanaWeb3.Transaction.from(serializedBuffer);
+                    transaction.partialSign(mintKeypair);
+                    
+                    const { signature } = await provider.signAndSendTransaction(transaction);
+                    await new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta')).confirmTransaction(signature, 'confirmed');
+                    
+                    Swal.fire({ 
+                        title: 'Successo!', 
+                        html: `Token creato!<br><a href="https://solscan.io/tx/${signature}" target="_blank">Vedi su Solscan</a>`, 
+                        icon: 'success' 
+                    });
+                } catch (err) {
+                    console.error('Errore di firma:', err);
+                    Swal.fire('Errore', err.message || 'Transazione annullata o fallita.', 'error');
+                }
+            }
+        });
+    </script>
+</body>
+</html>
