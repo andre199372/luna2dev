@@ -1,11 +1,10 @@
 {
   "name": "solana-token-launcher",
   "version": "1.0.0",
-  "description": "WebSocket server per il launcher di token Solana con implementazione custom Metaplex",
+  "description": "WebSocket server per il launcher di token Solana",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "start": "node server.js"
   },
   "engines": {
     "node": "20.x"
@@ -15,18 +14,14 @@
     "axios": "^1.6.8",
     "form-data": "^4.0.0",
     "@solana/web3.js": "^1.91.8",
-    "@solana/spl-token": "^0.4.6"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.0"
+    "@solana/spl-token": "^0.4.6",
+    "@metaplex-foundation/mpl-token-metadata": "^3.2.1"
   },
   "keywords": [
     "solana",
     "token",
     "launcher",
-    "websocket",
-    "blockchain",
-    "metaplex"
+    "websocket"
   ],
   "author": "Luna Launch",
   "license": "MIT"
