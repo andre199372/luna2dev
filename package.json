@@ -1,29 +1,14 @@
 {
-  "name": "solana-token-launcher-vercel",
+  "name": "vercel-ws-test",
   "version": "1.0.0",
-  "description": "WebSocket server per il launcher di token Solana per Vercel",
+  "description": "Minimal WebSocket server for Vercel connection testing.",
   "main": "api/server.js",
-  "scripts": {
-    "start": "node api/server.js"
-  },
   "engines": {
     "node": "20.x"
   },
   "dependencies": {
-    "ws": "^8.15.0",
-    "axios": "^1.6.8",
-    "form-data": "^4.0.0",
-    "@solana/web3.js": "^1.91.8",
-    "@solana/spl-token": "^0.4.6",
-    "@metaplex-foundation/mpl-token-metadata": "^3.2.1"
+    "ws": "^8.17.0"
   },
-  "keywords": [
-    "solana",
-    "token",
-    "vercel",
-    "websocket"
-  ],
-  "author": "Luna Launch",
+  "author": "Test",
   "license": "MIT"
 }
-
