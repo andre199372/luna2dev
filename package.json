@@ -1,14 +1,33 @@
 {
-  "name": "vercel-ws-test",
+  "name": "luna-launch-token-creator",
   "version": "1.0.0",
-  "description": "Minimal WebSocket server for Vercel connection testing.",
-  "main": "api/server.js",
-  "engines": {
-    "node": "20.x"
+  "description": "Solana Token Creator for Vercel deployment",
+  "main": "api/create-token.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'No build step required'",
+    "start": "vercel dev"
   },
   "dependencies": {
-    "ws": "^8.17.0"
+    "@metaplex-foundation/mpl-token-metadata": "^2.13.0",
+    "@solana/spl-token": "^0.3.8",
+    "@solana/web3.js": "^1.87.6",
+    "axios": "^1.6.2",
+    "form-data": "^4.0.0"
   },
-  "author": "Test",
+  "devDependencies": {
+    "vercel": "^32.7.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "solana",
+    "token",
+    "blockchain",
+    "vercel",
+    "serverless"
+  ],
+  "author": "Luna Launch",
   "license": "MIT"
 }
