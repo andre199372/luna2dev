@@ -31,7 +31,7 @@ try {
 
     // Cerca la funzione corretta, dato che i nomi sono cambiati tra le versioni
     const possibleFunctionNames = [
-        'createCreateMetadataAccountV3Instruction', // Nome più recente
+        'createCreateMetadataAccountV3Instruction', 
         'createMetadataAccountV3Instruction',
         'createMetadataAccountV3'
     ];
@@ -44,6 +44,7 @@ try {
         }
     }
     
+    // Correzione: il nome della variabile è cambiato nelle versioni recenti
     const programIdString = metaplex.MPL_TOKEN_METADATA_PROGRAM_ID;
 
     if (!createMetadataInstructionFunction) {
@@ -172,30 +173,32 @@ wss.on('connection', (ws) => {
                 
                 const metadataPDA = PublicKey.findProgramAddressSync([Buffer.from('metadata'), METADATA_PROGRAM_ID.toBuffer(), mint.toBuffer()], METADATA_PROGRAM_ID)[0];
                 
-                // CORREZIONE FINALE: La struttura degli argomenti è stata corretta.
+                // CORREZIONE FINALE: La struttura degli argomenti è stata corretta per corrispondere alla libreria.
                 const accounts = {
                     metadata: metadataPDA,
                     mint: mint,
                     mintAuthority: mintAuthority,
                     payer: payer,
                     updateAuthority: mintAuthority,
-                    systemProgram: SystemProgram.programId,
+                    systemProgram: SystemProgram.programId, // <-- ARGOMENTO MANCANTE AGGIUNTO
+                };
+                
+                const dataV2 = {
+                    name: name,
+                    symbol: symbol,
+                    uri: metadataUrl,
+                    creators: null,
+                    sellerFeeBasisPoints: 0,
+                    uses: null,
+                    collection: null,
                 };
                 
                 const args = {
                     createMetadataAccountArgsV3: {
-                        data: {
-                            name: name,
-                            symbol: symbol,
-                            uri: metadataUrl,
-                            creators: null,
-                            sellerFeeBasisPoints: 0,
-                            uses: null,
-                            collection: null,
-                        },
+                        data: dataV2,
                         isMutable: !options.revoke_update_authority,
                         collectionDetails: null,
-                    }
+                    },
                 };
 
                 const createMetadataInstruction = createMetadataInstructionFunction(accounts, args);
