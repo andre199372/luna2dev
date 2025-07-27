@@ -1,8 +1,6 @@
 // server.js
 const WebSocket = require('ws');
 const http = require('http');
-const fs = require('fs');
-const path = require('path');
 const axios = require('axios');
 const FormData = require('form-data');
 const {
@@ -34,13 +32,8 @@ console.log('[SERVER - STARTUP] ✅ Librerie Solana e Metaplex caricate con succ
 const PINATA_API_KEY = process.env.PINATA_API_KEY || '652df35488890fe4377c';
 const PINATA_SECRET_API_KEY = process.env.PINATA_SECRET_API_KEY || '29b2db0dd13dbce7c036eb68386c61916887a4b470fd288a309343814fab0f03';
 
-// Crea il server HTTP, ma non lo avvia con listen()
-const server = http.createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Server HTTP per upgrade WebSocket.');
-});
-
-const wss = new WebSocket.Server({ noServer: true }); // noServer: true è cruciale per Vercel
+// Crea un'istanza del WebSocket Server, ma senza associarla a un server HTTP subito.
+const wss = new WebSocket.Server({ noServer: true });
 
 wss.on('connection', (ws) => {
     console.log('[WS] Client connesso');
@@ -48,13 +41,6 @@ wss.on('connection', (ws) => {
     ws.on('close', () => console.log('[WS] Client disconnesso'));
     ws.on('error', (err) => console.error('[WS] Errore WebSocket:', err));
 });
-
-server.on('upgrade', (request, socket, head) => {
-    wss.handleUpgrade(request, socket, head, (ws) => {
-        wss.emit('connection', ws, request);
-    });
-});
-
 
 async function handleWebSocketMessage(ws, message) {
     let data;
@@ -179,5 +165,15 @@ async function buildTokenTransaction(params) {
     return serializedTransaction;
 }
 
-// ✅ Esporta il server per Vercel
-module.exports = server;
+// ✅ Esporta una funzione handler per Vercel
+module.exports = (req, res) => {
+    // Gestisce la richiesta di upgrade a WebSocket
+    if (req.headers.upgrade && req.headers.upgrade.toLowerCase() === 'websocket') {
+        wss.handleUpgrade(req, req.socket, Buffer.alloc(0), (ws) => {
+            wss.emit('connection', ws, req);
+        });
+    } else {
+        // Risponde alle normali richieste HTTP
+        res.status(200).send('Server WebSocket attivo.');
+    }
+};
