@@ -1,53 +1,50 @@
-// server.js (Full Stack: Client HTML + WebSocket Server for Vercel)
-const WebSocket = require('ws');
+// server.js (Full Stack: Final Vercel-Compatible Version)
 const http = require('http');
-const fs = require('fs');
-const path = require('path');
+const WebSocket = require('ws');
 const axios = require('axios');
 const FormData = require('form-data');
 const {
-    Connection,
-    PublicKey,
-    Transaction,
-    SystemProgram,
-    clusterApiUrl,
-    SYSVAR_RENT_PUBKEY
+    Connection, PublicKey, Transaction, SystemProgram, clusterApiUrl, SYSVAR_RENT_PUBKEY
 } = require('@solana/web3.js');
 const {
-    createInitializeMintInstruction,
-    getAssociatedTokenAddress,
-    createAssociatedTokenAccountInstruction,
-    createMintToInstruction,
-    MINT_SIZE,
-    TOKEN_PROGRAM_ID
+    createInitializeMintInstruction, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction,
+    createMintToInstruction, MINT_SIZE, TOKEN_PROGRAM_ID
 } = require('@solana/spl-token');
 const { 
-    createCreateMetadataAccountV3Instruction, 
-    PROGRAM_ID: METADATA_PROGRAM_ID 
+    createCreateMetadataAccountV3Instruction, PROGRAM_ID: METADATA_PROGRAM_ID 
 } = require('@metaplex-foundation/mpl-token-metadata');
 
 // --- PINATA CREDENTIALS ---
 const PINATA_API_KEY = process.env.PINATA_API_KEY || '652df35488890fe4377c';
 const PINATA_SECRET_API_KEY = process.env.PINATA_SECRET_API_KEY || '29b2db0dd13dbce7c036eb68386c61916887a4b470fd288a309343814fab0f03';
 
-// --- WebSocket Server Logic ---
-const wss = new WebSocket.Server({ noServer: true });
+// 1. Crea un server HTTP di base. Vercel lo gestirà.
+const server = http.createServer((req, res) => {
+    // Se la richiesta non è per un WebSocket, serve la pagina HTML.
+    if (req.headers['upgrade']?.toLowerCase() !== 'websocket') {
+        res.setHeader('Content-Type', 'text/html');
+        res.writeHead(200);
+        res.end(getHtmlClient());
+        return;
+    }
+});
+
+// 2. Collega il server WebSocket al server HTTP.
+const wss = new WebSocket.Server({ server });
 
 wss.on('connection', (ws) => {
     console.log('[WS] Client connected successfully!');
-    
     ws.on('message', async (message) => {
         let data;
         try {
             data = JSON.parse(message.toString());
         } catch (e) {
-            console.error('[WS] JSON parsing error:', e);
-            ws.send(JSON.stringify({ command: 'error', payload: { message: 'Invalid JSON format.' } }));
+            ws.send(JSON.stringify({ command: 'error', payload: { message: 'Invalid JSON.' } }));
             return;
         }
 
         if (data.type === 'create_token') {
-            console.log('[SERVER] Received token creation request.');
+            console.log('[SERVER] Token creation request received.');
             try {
                 const metadataUrl = await uploadMetadataToIPFS(data);
                 console.log(`[SERVER] Metadata uploaded: ${metadataUrl}`);
@@ -59,52 +56,29 @@ wss.on('connection', (ws) => {
                     command: 'transaction_ready', 
                     payload: { serializedTransaction } 
                 }));
-
             } catch (err) {
                 console.error('[SERVER] Error during token creation:', err);
                 ws.send(JSON.stringify({ command: 'error', payload: { message: err.message || 'An unknown error occurred.' } }));
             }
         }
     });
-
-    ws.on('close', () => console.log('[WS] Client disconnected.'));
-    ws.on('error', (err) => console.error('[WS] WebSocket Error:', err));
 });
 
-
-// --- Vercel Serverless Function Handler ---
-module.exports = (req, res) => {
-    if (req.headers['upgrade']?.toLowerCase() === 'websocket') {
-        wss.handleUpgrade(req, req.socket, Buffer.alloc(0), (ws) => {
-            wss.emit('connection', ws, req);
-        });
-    } else {
-        // Serve the HTML client page
-        res.setHeader('Content-Type', 'text/html');
-        res.status(200).send(getHtmlClient());
-    }
-};
-
 // --- Helper Functions ---
-
 async function uploadMetadataToIPFS({ name, symbol, description, imageBase64 }) {
     const metadata = { name, symbol, description, seller_fee_basis_points: 0, properties: { files: [], category: 'image' }};
-    
     if (imageBase64) {
         const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
         const buffer = Buffer.from(base64Data, 'base64');
         const formData = new FormData();
         formData.append('file', buffer, { filename: 'image.png' });
-        
         const imgRes = await axios.post('https://api.pinata.cloud/pinning/pinFileToIPFS', formData, {
             maxBodyLength: Infinity,
             headers: { ...formData.getHeaders(), pinata_api_key: PINATA_API_KEY, pinata_secret_api_key: PINATA_SECRET_API_KEY },
         });
         metadata.image = `https://gateway.pinata.cloud/ipfs/${imgRes.data.IpfsHash}`;
         metadata.properties.files.push({ uri: metadata.image, type: 'image/png' });
-
     }
-    
     const jsonRes = await axios.post('https://api.pinata.cloud/pinning/pinJSONToIPFS', metadata, {
         headers: { pinata_api_key: PINATA_API_KEY, pinata_secret_api_key: PINATA_SECRET_API_KEY, 'Content-Type': 'application/json' }
     });
@@ -113,16 +87,13 @@ async function uploadMetadataToIPFS({ name, symbol, description, imageBase64 }) 
 
 async function buildTokenTransaction(params) {
     const { name, symbol, decimals, supply, recipient, mintAddress, metadataUrl, options } = params;
-    
     const connection = new Connection(clusterApiUrl('mainnet-beta'), 'confirmed');
     const mint = new PublicKey(mintAddress);
     const payer = new PublicKey(recipient);
     const mintAuthority = payer;
     const freezeAuthority = options?.freeze_authority ? payer : null;
-
     const lamports = await connection.getMinimumBalanceForRentExemption(MINT_SIZE);
     const associatedTokenAccount = await getAssociatedTokenAddress(mint, payer);
-
     const [metadataPDA] = PublicKey.findProgramAddressSync(
         [Buffer.from('metadata'), METADATA_PROGRAM_ID.toBuffer(), mint.toBuffer()],
         METADATA_PROGRAM_ID
@@ -137,27 +108,13 @@ async function buildTokenTransaction(params) {
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
     };
-
     const dataV2 = {
-        name: name,
-        symbol: symbol,
-        uri: metadataUrl,
-        sellerFeeBasisPoints: 0,
-        creators: null,
-        collection: null,
-        uses: null,
+        name, symbol, uri: metadataUrl, sellerFeeBasisPoints: 0, creators: null, collection: null, uses: null,
     };
-    
     const args = {
-        createMetadataAccountArgsV3: {
-            data: dataV2,
-            isMutable: !options?.revoke_update_authority,
-            collectionDetails: null,
-        },
+        createMetadataAccountArgsV3: { data: dataV2, isMutable: !options?.revoke_update_authority, collectionDetails: null },
     };
-
     const createMetadataInstruction = createCreateMetadataAccountV3Instruction(accounts, args);
-
     const transaction = new Transaction().add(
         SystemProgram.createAccount({ fromPubkey: payer, newAccountPubkey: mint, space: MINT_SIZE, lamports, programId: TOKEN_PROGRAM_ID }),
         createInitializeMintInstruction(mint, decimals, mintAuthority, freezeAuthority),
@@ -165,13 +122,10 @@ async function buildTokenTransaction(params) {
         createMintToInstruction(mint, associatedTokenAccount, mintAuthority, BigInt(supply) * BigInt(10 ** decimals)),
         createMetadataInstruction
     );
-
     transaction.feePayer = payer;
     transaction.recentBlockhash = (await connection.getLatestBlockhash('confirmed')).blockhash;
-
     return transaction.serialize({ requireAllSignatures: false, verifySignatures: false }).toString('base64');
 }
-
 
 function getHtmlClient() {
     return `
@@ -181,10 +135,8 @@ function getHtmlClient() {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Luna Launch - Create Solana Token</title>
-            
             <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
             <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
-            
             <style>
                 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #000; color: #fff; margin: 0; display: flex; flex-direction: column; min-height: 100vh; }
                 header, footer { text-align: center; padding: 20px; border-bottom: 1px solid #333; }
@@ -213,60 +165,25 @@ function getHtmlClient() {
                 <div class="container">
                     <p>Crea il tuo token Solana in pochi semplici passaggi.</p>
                     <form class="form" id="token-form">
-                        <div class="form-group">
-                            <label for="tokenName">Nome Token *</label>
-                            <input required type="text" id="tokenName" placeholder="Es: Pepe Coin">
-                        </div>
-                        <div class="form-group">
-                            <label for="tokenSymbol">Simbolo Token *</label>
-                            <input type="text" id="tokenSymbol" placeholder="Es: PEPE" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="tokenDecimals">Decimali *</label>
-                            <input type="number" id="tokenDecimals" value="9" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="tokenSupply">Fornitura *</label>
-                            <input type="number" id="tokenSupply" required value="1000000">
-                        </div>
-                        <div class="form-group">
-                            <label for="tokenDescription">Descrizione *</label>
-                            <textarea id="tokenDescription" rows="3" placeholder="Descrivi il tuo token" required></textarea>
-                        </div>
-                        <div class="form-group">
-                             <label>Logo (Opzionale)</label>
-                             <div class="upload-area" id="logoDropzone">
-                                 <span>Trascina o clicca per caricare</span>
-                                 <input type="file" id="logoUpload" accept="image/*" style="display: none;">
-                                 <img id="logo-preview" />
-                             </div>
-                        </div>
-                         <div class="form-group checkbox-group">
-                            <input type="checkbox" id="revokeUpdate" />
-                            <label for="revokeUpdate">Rendi i metadati immutabili</label>
-                        </div>
-                         <div class="form-group checkbox-group">
-                            <input type="checkbox" id="revokeFreeze" checked />
-                            <label for="revokeFreeze">Disabilita il congelamento</label>
-                        </div>
-                        <div class="form-group">
-                            <label for="tokenRecipient">Destinatario dei Token (il tuo wallet) *</label>
-                            <input type="text" id="tokenRecipient" placeholder="Connetti il wallet per compilare automaticamente" required>
-                        </div>
+                        <div class="form-group"><label for="tokenName">Nome Token *</label><input required type="text" id="tokenName" placeholder="Es: Pepe Coin"></div>
+                        <div class="form-group"><label for="tokenSymbol">Simbolo Token *</label><input type="text" id="tokenSymbol" placeholder="Es: PEPE" required></div>
+                        <div class="form-group"><label for="tokenDecimals">Decimali *</label><input type="number" id="tokenDecimals" value="9" required></div>
+                        <div class="form-group"><label for="tokenSupply">Fornitura *</label><input type="number" id="tokenSupply" required value="1000000"></div>
+                        <div class="form-group"><label for="tokenDescription">Descrizione *</label><textarea id="tokenDescription" rows="3" placeholder="Descrivi il tuo token" required></textarea></div>
+                        <div class="form-group"><label>Logo (Opzionale)</label><div class="upload-area" id="logoDropzone"><span>Trascina o clicca per caricare</span><input type="file" id="logoUpload" accept="image/*" style="display: none;"><img id="logo-preview" /></div></div>
+                        <div class="form-group checkbox-group"><input type="checkbox" id="revokeUpdate" /><label for="revokeUpdate">Rendi i metadati immutabili</label></div>
+                        <div class="form-group checkbox-group"><input type="checkbox" id="revokeFreeze" checked /><label for="revokeFreeze">Disabilita il congelamento</label></div>
+                        <div class="form-group"><label for="tokenRecipient">Destinatario dei Token (il tuo wallet) *</label><input type="text" id="tokenRecipient" placeholder="Connetti il wallet per compilare automaticamente" required></div>
                         <button type="button" class="btn" id="connectWalletBtn">Connetti Wallet</button>
                         <button type="submit" class="btn" id="launchTokenBtn" style="margin-top: 10px;" disabled>Connessione al server...</button>
                     </form>
                 </div>
             </main>
-            <footer>
-                <p>© Luna Launch 2025</p>
-            </footer>
-
+            <footer><p>© Luna Launch 2025</p></footer>
             <script>
                 document.addEventListener('DOMContentLoaded', () => {
                     const connectWalletBtn = document.getElementById('connectWalletBtn');
                     const launchTokenBtn = document.getElementById('launchTokenBtn');
-                    const tokenForm = document.getElementById('token-form');
                     const tokenRecipientInput = document.getElementById('tokenRecipient');
                     const logoDropzone = document.getElementById('logoDropzone');
                     const logoUpload = document.getElementById('logoUpload');
@@ -275,46 +192,23 @@ function getHtmlClient() {
                     let mintKeypair;
                     let logoBase64 = null;
 
-                    // --- WebSocket Connection ---
                     function connectWebSocket() {
                         launchTokenBtn.textContent = 'Connessione al server...';
                         launchTokenBtn.disabled = true;
-
                         const wsUrl = 'wss://' + window.location.host;
                         ws = new WebSocket(wsUrl);
-
-                        ws.onopen = () => {
-                            console.log('[WS] Connessione aperta.');
-                            launchTokenBtn.textContent = 'Lancia Token';
-                            launchTokenBtn.disabled = false;
-                        };
-
+                        ws.onopen = () => { console.log('[WS] Connessione aperta.'); launchTokenBtn.textContent = 'Lancia Token'; launchTokenBtn.disabled = false; };
                         ws.onmessage = async (event) => {
                             const data = JSON.parse(event.data);
-                            if (data.command === 'error') {
-                                Swal.fire('Errore dal Server', data.payload.message, 'error');
-                            } else if (data.command === 'transaction_ready') {
-                                await signAndSendTransaction(data.payload.serializedTransaction);
-                            }
+                            if (data.command === 'error') { Swal.fire('Errore dal Server', data.payload.message, 'error'); } 
+                            else if (data.command === 'transaction_ready') { await signAndSendTransaction(data.payload.serializedTransaction); }
                         };
-
-                        ws.onclose = () => {
-                            console.warn('[WS] Connessione chiusa.');
-                            launchTokenBtn.textContent = 'Riconnessione... (Ricarica la pagina)';
-                            launchTokenBtn.disabled = true;
-                        };
-
-                        ws.onerror = (err) => {
-                            console.error('[WS] Errore di connessione.', err);
-                            launchTokenBtn.textContent = 'Connessione Fallita (Ricarica la pagina)';
-                            launchTokenBtn.disabled = true;
-                        };
+                        ws.onclose = () => { launchTokenBtn.textContent = 'Connessione persa (Ricarica)'; launchTokenBtn.disabled = true; };
+                        ws.onerror = (err) => { console.error(err); launchTokenBtn.textContent = 'Errore Connessione (Ricarica)'; launchTokenBtn.disabled = true; };
                     }
                     connectWebSocket();
 
-                    // --- Wallet Logic ---
                     const getProvider = () => window.phantom?.solana;
-                    
                     connectWalletBtn.addEventListener('click', async () => {
                         const provider = getProvider();
                         if (provider) {
@@ -323,43 +217,29 @@ function getHtmlClient() {
                                 const publicKey = resp.publicKey.toString();
                                 connectWalletBtn.textContent = \`Connesso: \${publicKey.slice(0, 4)}...\${publicKey.slice(-4)}\`;
                                 tokenRecipientInput.value = publicKey;
-                            } catch (err) {
-                                Swal.fire('Errore', 'Connessione al wallet rifiutata.', 'error');
-                            }
-                        } else {
-                            window.open('https://phantom.app/', '_blank');
-                        }
+                            } catch (err) { Swal.fire('Errore', 'Connessione al wallet rifiutata.', 'error'); }
+                        } else { window.open('https://phantom.app/', '_blank'); }
                     });
 
-                    // --- Logo Upload Logic ---
                     logoDropzone.addEventListener('click', () => logoUpload.click());
                     logoUpload.addEventListener('change', (e) => {
                         if (e.target.files.length) {
-                            const file = e.target.files[0];
                             const reader = new FileReader();
                             reader.onload = (event) => {
                                 logoBase64 = event.target.result;
                                 logoPreview.src = logoBase64;
                                 logoPreview.style.display = 'block';
                             };
-                            reader.readAsDataURL(file);
+                            reader.readAsDataURL(e.target.files[0]);
                         }
                     });
 
-                    // --- Form Submission ---
-                    tokenForm.addEventListener('submit', async (e) => {
+                    document.getElementById('token-form').addEventListener('submit', async (e) => {
                         e.preventDefault();
                         const provider = getProvider();
-
-                        if (!provider || !provider.publicKey) {
-                            return Swal.fire('Wallet non connesso', 'Per favore connetti il tuo wallet Phantom.', 'warning');
-                        }
-                        if (!ws || ws.readyState !== WebSocket.OPEN) {
-                             return Swal.fire('Errore di Connessione', 'Connessione al server non disponibile.', 'error');
-                        }
-
+                        if (!provider || !provider.publicKey) return Swal.fire('Wallet non connesso', 'Per favore connetti il tuo wallet Phantom.', 'warning');
+                        if (!ws || ws.readyState !== WebSocket.OPEN) return Swal.fire('Errore di Connessione', 'Connessione al server non disponibile.', 'error');
                         mintKeypair = solanaWeb3.Keypair.generate();
-                        
                         const tokenData = {
                             type: 'create_token',
                             name: document.getElementById('tokenName').value,
@@ -375,37 +255,22 @@ function getHtmlClient() {
                                 revoke_update_authority: document.getElementById('revokeUpdate').checked,
                             }
                         };
-                        
                         ws.send(JSON.stringify(tokenData));
-                        
-                        Swal.fire({
-                            title: 'In attesa...',
-                            text: 'Stiamo preparando la transazione. Controlla il tuo wallet a breve.',
-                            icon: 'info',
-                            allowOutsideClick: false,
-                            didOpen: () => Swal.showLoading()
-                        });
+                        Swal.fire({ title: 'In attesa...', text: 'Preparo la transazione. Approva nel tuo wallet.', icon: 'info', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                     });
 
                     async function signAndSendTransaction(serializedTransaction) {
                         const provider = getProvider();
                         try {
-                            const serializedBuffer = new Uint8Array(atob(serializedTransaction).split('').map(char => char.charCodeAt(0)));
+                            const serializedBuffer = Uint8Array.from(atob(serializedTransaction), c => c.charCodeAt(0));
                             const transaction = solanaWeb3.Transaction.from(serializedBuffer);
                             transaction.partialSign(mintKeypair);
-
                             const { signature } = await provider.signAndSendTransaction(transaction);
-                            
                             await new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta')).confirmTransaction(signature, 'confirmed');
-
-                            Swal.fire({
-                                title: 'Successo!',
-                                html: \`Token creato con successo!<br><a href="https://solscan.io/tx/\${signature}" target="_blank">Vedi su Solscan</a>\`,
-                                icon: 'success'
-                            });
+                            Swal.fire({ title: 'Successo!', html: \`Token creato!<br><a href="https://solscan.io/tx/\${signature}" target="_blank">Vedi su Solscan</a>\`, icon: 'success' });
                         } catch (err) {
                             console.error('Errore di firma:', err);
-                            Swal.fire('Errore', err.message || 'La transazione è stata annullata o è fallita.', 'error');
+                            Swal.fire('Errore', err.message || 'Transazione annullata o fallita.', 'error');
                         }
                     }
                 });
@@ -414,3 +279,6 @@ function getHtmlClient() {
         </html>
     `;
 }
+
+// 3. Esporta il server per Vercel.
+module.exports = server;
