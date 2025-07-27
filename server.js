@@ -22,11 +22,15 @@ const {
     TOKEN_PROGRAM_ID,
 } = require('@solana/spl-token');
 
-// ✅ Importazione corretta e robusta dalla libreria Metaplex
+// ✅ Importazione della funzione dalla libreria Metaplex
 const { 
-    createCreateMetadataAccountV3Instruction, 
-    PROGRAM_ID: METADATA_PROGRAM_ID 
+    createCreateMetadataAccountV3Instruction 
 } = require('@metaplex-foundation/mpl-token-metadata');
+
+// ✅ SOLUZIONE: Definiamo l'ID del programma Metaplex come una costante,
+//    questo previene problemi di importazione dall'ambiente del server.
+const METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
+
 
 console.log('[SERVER - STARTUP] ✅ Librerie Solana e Metaplex caricate con successo.');
 
@@ -141,7 +145,7 @@ async function buildTokenTransaction(params) {
         symbol: symbol,
         uri: metadataUrl,
         sellerFeeBasisPoints: 0,
-        creators: [{ address: payer, verified: true, share: 100 }], // ✅ Creatore obbligatorio
+        creators: [{ address: payer, verified: true, share: 100 }],
         collection: null,
         uses: null,
     };
@@ -154,7 +158,6 @@ async function buildTokenTransaction(params) {
         },
     };
 
-    // ✅ Utilizzo della funzione ufficiale con la struttura di argomenti corretta
     const createMetadataInstruction = createCreateMetadataAccountV3Instruction(accounts, args);
 
     const transaction = new Transaction().add(
