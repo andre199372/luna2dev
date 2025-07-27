@@ -27,26 +27,26 @@ let METADATA_PROGRAM_ID;
 
 try {
     const metaplex = require('@metaplex-foundation/mpl-token-metadata');
-    console.log('[SERVER] Libreria @metaplex-foundation/mpl-token-metadata caricata con successo.');
+    console.log('[SERVER - STARTUP] Libreria @metaplex-foundation/mpl-token-metadata caricata.');
 
-    // Correzione: Il nome della funzione è cambiato nelle versioni recenti.
-    createMetadataInstructionFunction = metaplex.createCreateMetadataAccountV3Instruction || metaplex.createCreateMetadataAccountV3;
+    // Usiamo direttamente il nome che i log hanno confermato esistere.
+    createMetadataInstructionFunction = metaplex.createCreateMetadataAccountV3;
     METADATA_PROGRAM_ID = metaplex.MPL_TOKEN_METADATA_PROGRAM_ID;
 
     if (!createMetadataInstructionFunction) {
-        console.error('[SERVER] ERRORE: Nessuna funzione valida per la creazione dei metadati è stata trovata.');
+        console.error('[SERVER - STARTUP] ERRORE: La funzione "createCreateMetadataAccountV3" non è stata trovata.');
     } else {
-        console.log('[SERVER] La funzione di creazione dei metadati è stata trovata.');
+        console.log('[SERVER - STARTUP] La funzione di creazione dei metadati è stata trovata.');
     }
 
     if (!METADATA_PROGRAM_ID) {
-        console.error('[SERVER] ERRORE: "METADATA_PROGRAM_ID" non è stato trovato.');
+        console.error('[SERVER - STARTUP] ERRORE: "METADATA_PROGRAM_ID" non è stato trovato.');
     } else {
-        console.log('[SERVER] "METADATA_PROGRAM_ID" è stato trovato:', METADATA_PROGRAM_ID.toBase58 ? METADATA_PROGRAM_ID.toBase58() : METADATA_PROGRAM_ID);
+        console.log('[SERVER - STARTUP] "METADATA_PROGRAM_ID" è stato trovato.');
     }
 
 } catch (e) {
-    console.error('[SERVER] ERRORE CRITICO: Impossibile eseguire require("@metaplex-foundation/mpl-token-metadata"). L\'errore è:', e.message);
+    console.error('[SERVER - STARTUP] ERRORE CRITICO: Impossibile caricare "@metaplex-foundation/mpl-token-metadata".', e.message);
 }
 // ===== FINE BLOCCO DI DEBUG =====
 
@@ -102,8 +102,8 @@ wss.on('connection', (ws) => {
                 return;
             }
              if (!METADATA_PROGRAM_ID || !createMetadataInstructionFunction) {
-                const errorMessage = "Libreria Metaplex non importata correttamente. Controlla le dipendenze e i log del server.";
-                console.error(`[SERVER] ${errorMessage}`);
+                const errorMessage = "ERRORE INTERNO DEL SERVER: Le funzioni di Metaplex non sono disponibili. Controllare i log di avvio del server.";
+                console.error(`[SERVER - RICHIESTA] ${errorMessage}`);
                 ws.send(JSON.stringify({ command: 'error', payload: { message: errorMessage } }));
                 return;
             }
