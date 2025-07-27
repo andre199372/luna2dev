@@ -23,17 +23,16 @@ const {
 
 // ===== BLOCCO DI DEBUG AVANZATO PER METAPLEX =====
 let createMetadataInstructionFunction; // Nome generico per la funzione
-let METADATA_PROGRAM_ID;
+let METADATA_PROGRAM_ID; // Questo ora sarà un oggetto PublicKey
 
 try {
     const metaplex = require('@metaplex-foundation/mpl-token-metadata');
     console.log('[SERVER - STARTUP] Libreria @metaplex-foundation/mpl-token-metadata caricata.');
 
-    // CORREZIONE: Array di nomi possibili corretto, senza l'errore di battitura "createCreate".
     const possibleFunctionNames = [
         'createMetadataAccountV3Instruction',
         'createMetadataAccountV3',
-        'createCreateMetadataAccountV3Instruction' // Mantenuto per retrocompatibilità in caso di versioni strane
+        'createCreateMetadataAccountV3Instruction'
     ];
 
     for (const name of possibleFunctionNames) {
@@ -44,17 +43,18 @@ try {
         }
     }
     
-    METADATA_PROGRAM_ID = metaplex.MPL_TOKEN_METADATA_PROGRAM_ID;
+    // CORREZIONE FINALE: La libreria restituisce una stringa, che deve essere convertita in un oggetto PublicKey.
+    const programIdString = metaplex.MPL_TOKEN_METADATA_PROGRAM_ID;
 
     if (!createMetadataInstructionFunction) {
-        console.error('[SERVER - STARTUP] ERRORE CRITICO: Nessuna funzione valida per la creazione dei metadati è stata trovata nella libreria Metaplex.');
-        console.log('[SERVER - DEBUG] Contenuto della libreria Metaplex:', Object.keys(metaplex));
+        console.error('[SERVER - STARTUP] ERRORE CRITICO: Nessuna funzione valida per la creazione dei metadati è stata trovata.');
     }
 
-    if (!METADATA_PROGRAM_ID) {
+    if (!programIdString) {
         console.error('[SERVER - STARTUP] ERRORE CRITICO: "METADATA_PROGRAM_ID" non è stato trovato.');
     } else {
-        console.log('[SERVER - STARTUP] "METADATA_PROGRAM_ID" è stato trovato.');
+        METADATA_PROGRAM_ID = new PublicKey(programIdString); // Converti la stringa in un oggetto PublicKey
+        console.log('[SERVER - STARTUP] "METADATA_PROGRAM_ID" è stato trovato e convertito in PublicKey.');
     }
 
 } catch (e) {
@@ -170,6 +170,7 @@ wss.on('connection', (ws) => {
                 const createAtaInstruction = createAssociatedTokenAccountInstruction(payer, associatedTokenAccount, payer, mint);
                 const mintToInstruction = createMintToInstruction(mint, associatedTokenAccount, mintAuthority, supply * Math.pow(10, decimals));
                 
+                // Ora METADATA_PROGRAM_ID è un oggetto PublicKey e può essere usato qui.
                 const metadataPDA = PublicKey.findProgramAddressSync([Buffer.from('metadata'), METADATA_PROGRAM_ID.toBuffer(), mint.toBuffer()], METADATA_PROGRAM_ID)[0];
                 const createMetadataInstruction = createMetadataInstructionFunction({ metadata: metadataPDA, mint: mint, mintAuthority: mintAuthority, payer: payer, updateAuthority: mintAuthority, }, {
                     createMetadataAccountArgsV3: {
