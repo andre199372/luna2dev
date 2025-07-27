@@ -171,13 +171,13 @@ wss.on('connection', (ws) => {
                 
                 const metadataPDA = PublicKey.findProgramAddressSync([Buffer.from('metadata'), METADATA_PROGRAM_ID.toBuffer(), mint.toBuffer()], METADATA_PROGRAM_ID)[0];
                 
-                // CORREZIONE FINALE: La funzione si aspetta un solo oggetto contenente sia gli accounts che i data args.
                 const instructionArgs = {
                     metadata: metadataPDA,
                     mint: mint,
                     mintAuthority: mintAuthority,
                     payer: payer,
                     updateAuthority: mintAuthority,
+                    systemProgram: SystemProgram.programId, // <-- ACCOUNT MANCANTE AGGIUNTO QUI
                     createMetadataAccountArgsV3: {
                         data: {
                             name: name,
