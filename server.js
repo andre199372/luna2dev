@@ -22,12 +22,11 @@ const {
     TOKEN_PROGRAM_ID,
 } = require('@solana/spl-token');
 
-// ✅ SOLUZIONE: Importiamo l'intera libreria per evitare problemi di destructuring
+// Importazione corretta dalla libreria Metaplex
 const mplTokenMetadata = require('@metaplex-foundation/mpl-token-metadata');
 
-// ✅ Definiamo l'ID del programma Metaplex come una costante.
+// Definiamo l'ID del programma Metaplex come una costante pubblica
 const METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
-
 
 console.log('[SERVER - STARTUP] ✅ Librerie Solana e Metaplex caricate con successo.');
 
@@ -35,13 +34,13 @@ console.log('[SERVER - STARTUP] ✅ Librerie Solana e Metaplex caricate con succ
 const PINATA_API_KEY = process.env.PINATA_API_KEY || '652df35488890fe4377c';
 const PINATA_SECRET_API_KEY = process.env.PINATA_SECRET_API_KEY || '29b2db0dd13dbce7c036eb68386c61916887a4b470fd288a309343814fab0f03';
 
-const PORT = process.env.PORT || 8443;
+// Crea il server HTTP, ma non lo avvia con listen()
 const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('WebSocket server running.');
+    res.end('Server HTTP per upgrade WebSocket.');
 });
 
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ noServer: true }); // noServer: true è cruciale per Vercel
 
 wss.on('connection', (ws) => {
     console.log('[WS] Client connesso');
@@ -49,6 +48,13 @@ wss.on('connection', (ws) => {
     ws.on('close', () => console.log('[WS] Client disconnesso'));
     ws.on('error', (err) => console.error('[WS] Errore WebSocket:', err));
 });
+
+server.on('upgrade', (request, socket, head) => {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request);
+    });
+});
+
 
 async function handleWebSocketMessage(ws, message) {
     let data;
@@ -92,8 +98,8 @@ async function handleTokenCreation(ws, data) {
 async function uploadMetadataToIPFS(name, symbol, description, imageBase64) {
     const metadata = { name, symbol, description, seller_fee_basis_points: 0, properties: { files: [], category: '' } };
     if (imageBase64) {
-        const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
-        const buffer = Buffer.from(base64Data, 'base64');
+        // Vercel non può scrivere file temporanei, quindi usiamo direttamente il buffer
+        const buffer = Buffer.from(imageBase64.replace(/^data:image\/\w+;base64,/, ''), 'base64');
         const formData = new FormData();
         formData.append('file', buffer, { filename: 'image.png' });
         
@@ -155,7 +161,6 @@ async function buildTokenTransaction(params) {
         },
     };
 
-    // ✅ CORREZIONE: Chiamiamo la funzione come proprietà dell'oggetto importato
     const createMetadataInstruction = mplTokenMetadata.createCreateMetadataAccountV3Instruction(accounts, args);
 
     const transaction = new Transaction().add(
@@ -174,6 +179,5 @@ async function buildTokenTransaction(params) {
     return serializedTransaction;
 }
 
-server.listen(PORT, () => {
-    console.log(`[SERVER] 🚀 Server in ascolto sulla porta ${PORT}`);
-});
+// ✅ Esporta il server per Vercel
+module.exports = server;
