@@ -21,23 +21,41 @@ const {
     TOKEN_PROGRAM_ID
 } = require('@solana/spl-token');
 
-// ===== BLOCCO DI DEBUG PER METAPLEX =====
-// Aggiungiamo un controllo più robusto per capire perché la libreria non viene caricata.
-let metaplex;
-try {
-    metaplex = require('@metaplex-foundation/mpl-token-metadata');
-    console.log('[SERVER] Libreria Metaplex caricata con successo. Contenuto:', metaplex);
-} catch (e) {
-    console.error('[SERVER] ERRORE CRITICO: Impossibile caricare @metaplex-foundation/mpl-token-metadata. L\'errore è:', e.message);
-    // Se fallisce qui, significa che il pacchetto non è installato.
-    // Controlla che package.json sia stato caricato (push) su GitHub.
-}
+// ===== BLOCCO DI DEBUG AVANZATO PER METAPLEX =====
+let createCreateMetadataAccountV3Instruction;
+let METADATA_PROGRAM_ID;
 
-// Estraiamo le funzioni DOPO aver verificato che la libreria sia stata caricata.
-const {
-    createCreateMetadataAccountV3Instruction,
-    PROGRAM_ID: METADATA_PROGRAM_ID
-} = metaplex || {}; // Usiamo un oggetto vuoto per evitare crash se 'metaplex' è undefined
+try {
+    const metaplex = require('@metaplex-foundation/mpl-token-metadata');
+    console.log('[SERVER] Libreria @metaplex-foundation/mpl-token-metadata caricata con successo.');
+
+    // Logga l'intero oggetto per ispezionare la sua struttura
+    // JSON.stringify potrebbe non funzionare con oggetti complessi, quindi usiamo console.dir
+    console.log('[SERVER] Ispezione del contenuto di metaplex:');
+    console.dir(metaplex, { depth: null });
+
+
+    // Accede alle proprietà in modo diretto e sicuro
+    createCreateMetadataAccountV3Instruction = metaplex.createCreateMetadataAccountV3Instruction;
+    METADATA_PROGRAM_ID = metaplex.PROGRAM_ID;
+
+    if (!createCreateMetadataAccountV3Instruction) {
+        console.error('[SERVER] ERRORE: La funzione "createCreateMetadataAccountV3Instruction" non è stata trovata nell\'oggetto metaplex.');
+    } else {
+        console.log('[SERVER] La funzione "createCreateMetadataAccountV3Instruction" è stata trovata.');
+    }
+
+    if (!METADATA_PROGRAM_ID) {
+        console.error('[SERVER] ERRORE: "PROGRAM_ID" non è stato trovato nell\'oggetto metaplex.');
+    } else {
+        console.log('[SERVER] "METADATA_PROGRAM_ID" è stato trovato:', METADATA_PROGRAM_ID.toBase58 ? METADATA_PROGRAM_ID.toBase58() : METADATA_PROGRAM_ID);
+    }
+
+} catch (e) {
+    console.error('[SERVER] ERRORE CRITICO: Impossibile eseguire require("@metaplex-foundation/mpl-token-metadata"). L\'errore è:', e.message);
+}
+// ===== FINE BLOCCO DI DEBUG =====
+
 
 // --- CREDENZIALI PINATA ---
 const PINATA_API_KEY = '652df35488890fe4377c';
@@ -70,8 +88,7 @@ wss.on('connection', (ws) => {
 
 
         if (data.type === 'create_token') {
-            // Log completo dei dati ricevuti per il debug
-            console.log('[SERVER] Ricevuta richiesta di creazione token. Dati:', JSON.stringify(data, null, 2));
+            console.log('[SERVER] Ricevuta richiesta di creazione token.');
 
             // ===== BLOCCO DI VALIDAZIONE MIGLIORATO =====
             const { recipient, mintAddress } = data;
@@ -90,8 +107,8 @@ wss.on('connection', (ws) => {
                 ws.send(JSON.stringify({ command: 'error', payload: { message: errorMessage } }));
                 return;
             }
-             if (!METADATA_PROGRAM_ID) {
-                const errorMessage = "METADATA_PROGRAM_ID non è stato importato correttamente. Controlla le dipendenze.";
+             if (!METADATA_PROGRAM_ID || !createCreateMetadataAccountV3Instruction) {
+                const errorMessage = "METADATA_PROGRAM_ID non è stato importato correttamente. Controlla le dipendenze e i log del server.";
                 console.error(`[SERVER] ${errorMessage}`);
                 ws.send(JSON.stringify({ command: 'error', payload: { message: errorMessage } }));
                 return;
@@ -158,7 +175,6 @@ wss.on('connection', (ws) => {
                 // 3. Creazione e invio della transazione serializzata
                 const transaction = new Transaction().add(createAccountInstruction, initializeMintInstruction, createAtaInstruction, mintToInstruction, createMetadataInstruction);
                 transaction.feePayer = payer;
-                // La recentBlockhash verrà aggiunta dal client prima di firmare
                 
                 const serializedTransaction = transaction.serialize({ requireAllSignatures: false, verifySignatures: false }).toString('base64');
                 console.log('[SERVER] Transazione creata e serializzata. Invio al client.');
@@ -166,7 +182,7 @@ wss.on('connection', (ws) => {
                 ws.send(JSON.stringify({ command: 'transaction_ready', payload: { serializedTransaction: serializedTransaction } }));
 
             } catch (err) {
-                console.error('[SERVER] Errore durante la costruzione della transazione:', err);
+                console.error('[SERVER] Errore durante la costruzione della transazione:', err.stack);
                 ws.send(JSON.stringify({ command: 'error', payload: { message: err.message } }));
             }
         }
