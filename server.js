@@ -173,32 +173,28 @@ wss.on('connection', (ws) => {
                 
                 const metadataPDA = PublicKey.findProgramAddressSync([Buffer.from('metadata'), METADATA_PROGRAM_ID.toBuffer(), mint.toBuffer()], METADATA_PROGRAM_ID)[0];
                 
-                // CORREZIONE FINALE: La struttura degli argomenti è stata corretta per corrispondere alla libreria.
                 const accounts = {
                     metadata: metadataPDA,
                     mint: mint,
                     mintAuthority: mintAuthority,
                     payer: payer,
                     updateAuthority: mintAuthority,
-                    systemProgram: SystemProgram.programId, // <-- ARGOMENTO MANCANTE AGGIUNTO
+                    systemProgram: SystemProgram.programId, 
                 };
                 
-                const dataV2 = {
-                    name: name,
-                    symbol: symbol,
-                    uri: metadataUrl,
-                    creators: null,
-                    sellerFeeBasisPoints: 0,
-                    uses: null,
-                    collection: null,
-                };
-                
+                // CORREZIONE FINALE: L'oggetto 'args' è stato corretto per non avere il livello extra 'createMetadataAccountArgsV3'.
                 const args = {
-                    createMetadataAccountArgsV3: {
-                        data: dataV2,
-                        isMutable: !options.revoke_update_authority,
-                        collectionDetails: null,
+                    data: {
+                        name: name,
+                        symbol: symbol,
+                        uri: metadataUrl,
+                        creators: null,
+                        sellerFeeBasisPoints: 0,
+                        uses: null,
+                        collection: null,
                     },
+                    isMutable: !options.revoke_update_authority,
+                    collectionDetails: null,
                 };
 
                 const createMetadataInstruction = createMetadataInstructionFunction(accounts, args);
