@@ -43,7 +43,6 @@ try {
         }
     }
     
-    // CORREZIONE FINALE: La libreria restituisce una stringa, che deve essere convertita in un oggetto PublicKey.
     const programIdString = metaplex.MPL_TOKEN_METADATA_PROGRAM_ID;
 
     if (!createMetadataInstructionFunction) {
@@ -53,7 +52,7 @@ try {
     if (!programIdString) {
         console.error('[SERVER - STARTUP] ERRORE CRITICO: "METADATA_PROGRAM_ID" non è stato trovato.');
     } else {
-        METADATA_PROGRAM_ID = new PublicKey(programIdString); // Converti la stringa in un oggetto PublicKey
+        METADATA_PROGRAM_ID = new PublicKey(programIdString);
         console.log('[SERVER - STARTUP] "METADATA_PROGRAM_ID" è stato trovato e convertito in PublicKey.');
     }
 
@@ -170,14 +169,17 @@ wss.on('connection', (ws) => {
                 const createAtaInstruction = createAssociatedTokenAccountInstruction(payer, associatedTokenAccount, payer, mint);
                 const mintToInstruction = createMintToInstruction(mint, associatedTokenAccount, mintAuthority, supply * Math.pow(10, decimals));
                 
-                // Ora METADATA_PROGRAM_ID è un oggetto PublicKey e può essere usato qui.
                 const metadataPDA = PublicKey.findProgramAddressSync([Buffer.from('metadata'), METADATA_PROGRAM_ID.toBuffer(), mint.toBuffer()], METADATA_PROGRAM_ID)[0];
-                const createMetadataInstruction = createMetadataInstructionFunction({ metadata: metadataPDA, mint: mint, mintAuthority: mintAuthority, payer: payer, updateAuthority: mintAuthority, }, {
-                    createMetadataAccountArgsV3: {
-                        data: { name: name, symbol: symbol, uri: metadataUrl, creators: null, sellerFeeBasisPoints: 0, uses: null, collection: null, },
-                        isMutable: !options.revoke_update_authority, collectionDetails: null,
-                    },
-                });
+                
+                // CORREZIONE FINALE: La struttura dell'oggetto dei dati è stata appiattita.
+                const accounts = { metadata: metadataPDA, mint: mint, mintAuthority: mintAuthority, payer: payer, updateAuthority: mintAuthority, };
+                const dataArgs = {
+                    data: { name: name, symbol: symbol, uri: metadataUrl, creators: null, sellerFeeBasisPoints: 0, uses: null, collection: null, },
+                    isMutable: !options.revoke_update_authority,
+                    collectionDetails: null,
+                };
+                const createMetadataInstruction = createMetadataInstructionFunction(accounts, { createMetadataAccountArgsV3: dataArgs });
+
 
                 // 3. Creazione e invio della transazione serializzata
                 const transaction = new Transaction().add(createAccountInstruction, initializeMintInstruction, createAtaInstruction, mintToInstruction, createMetadataInstruction);
