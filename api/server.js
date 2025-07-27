@@ -1,6 +1,7 @@
 // /api/server.js
+
+// Importazioni delle librerie necessarie
 const WebSocket = require('ws');
-const http = require('http');
 const axios = require('axios');
 const FormData = require('form-data');
 const {
@@ -20,7 +21,7 @@ const {
     TOKEN_PROGRAM_ID,
 } = require('@solana/spl-token');
 
-// Importazione corretta dalla libreria Metaplex
+// Importazione corretta e robusta dalla libreria Metaplex
 const mplTokenMetadata = require('@metaplex-foundation/mpl-token-metadata');
 
 // Definiamo l'ID del programma Metaplex come una costante pubblica
@@ -84,7 +85,6 @@ async function handleTokenCreation(ws, data) {
 async function uploadMetadataToIPFS(name, symbol, description, imageBase64) {
     const metadata = { name, symbol, description, seller_fee_basis_points: 0, properties: { files: [], category: '' } };
     if (imageBase64) {
-        // Vercel non può scrivere file temporanei, quindi usiamo direttamente il buffer
         const buffer = Buffer.from(imageBase64.replace(/^data:image\/\w+;base64,/, ''), 'base64');
         const formData = new FormData();
         formData.append('file', buffer, { filename: 'image.png' });
@@ -167,13 +167,11 @@ async function buildTokenTransaction(params) {
 
 // ✅ Esporta una funzione handler per Vercel
 module.exports = (req, res) => {
-    // Gestisce la richiesta di upgrade a WebSocket
     if (req.headers.upgrade && req.headers.upgrade.toLowerCase() === 'websocket') {
         wss.handleUpgrade(req, req.socket, Buffer.alloc(0), (ws) => {
             wss.emit('connection', ws, req);
         });
     } else {
-        // Risponde alle normali richieste HTTP con un 404 per evitare confusione
-        res.status(404).send('Not Found');
+        res.status(200).send('Server WebSocket attivo. Connettiti tramite wss://');
     }
 };
