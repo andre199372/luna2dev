@@ -165,13 +165,20 @@ async function buildTokenTransaction(params) {
     return serializedTransaction;
 }
 
-// ✅ Esporta una funzione handler per Vercel
+// ✅ CORREZIONE FINALE per Vercel
+// Esporta una funzione handler che Vercel può usare
 module.exports = (req, res) => {
-    if (req.headers.upgrade && req.headers.upgrade.toLowerCase() === 'websocket') {
-        wss.handleUpgrade(req, req.socket, Buffer.alloc(0), (ws) => {
-            wss.emit('connection', ws, req);
-        });
-    } else {
-        res.status(200).send('Server WebSocket attivo. Connettiti tramite wss://');
+    // Se la richiesta non è un upgrade a WebSocket, non fare nulla e distruggi il socket.
+    // Questo è il modo più robusto per gestire le funzioni serverless di Vercel per i WebSocket.
+    if (!res.socket.server.upgrade) {
+        res.end();
+        return;
     }
+
+    // Altrimenti, gestisci l'upgrade come prima
+    res.socket.server.on('upgrade', (request, socket, head) => {
+        wss.handleUpgrade(request, socket, head, (ws) => {
+            wss.emit('connection', ws, request);
+        });
+    });
 };
