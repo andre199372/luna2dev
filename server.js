@@ -29,24 +29,19 @@ try {
     const metaplex = require('@metaplex-foundation/mpl-token-metadata');
     console.log('[SERVER] Libreria @metaplex-foundation/mpl-token-metadata caricata con successo.');
 
-    // Logga l'intero oggetto per ispezionare la sua struttura
-    // JSON.stringify potrebbe non funzionare con oggetti complessi, quindi usiamo console.dir
-    console.log('[SERVER] Ispezione del contenuto di metaplex:');
-    console.dir(metaplex, { depth: null });
-
-
     // Accede alle proprietà in modo diretto e sicuro
     createCreateMetadataAccountV3Instruction = metaplex.createCreateMetadataAccountV3Instruction;
-    METADATA_PROGRAM_ID = metaplex.PROGRAM_ID;
+    // Correzione: La libreria esporta MPL_TOKEN_METADATA_PROGRAM_ID, non PROGRAM_ID.
+    METADATA_PROGRAM_ID = metaplex.MPL_TOKEN_METADATA_PROGRAM_ID;
 
     if (!createCreateMetadataAccountV3Instruction) {
-        console.error('[SERVER] ERRORE: La funzione "createCreateMetadataAccountV3Instruction" non è stata trovata nell\'oggetto metaplex.');
+        console.error('[SERVER] ERRORE: La funzione "createCreateMetadataAccountV3Instruction" non è stata trovata.');
     } else {
         console.log('[SERVER] La funzione "createCreateMetadataAccountV3Instruction" è stata trovata.');
     }
 
     if (!METADATA_PROGRAM_ID) {
-        console.error('[SERVER] ERRORE: "PROGRAM_ID" non è stato trovato nell\'oggetto metaplex.');
+        console.error('[SERVER] ERRORE: "METADATA_PROGRAM_ID" non è stato trovato.');
     } else {
         console.log('[SERVER] "METADATA_PROGRAM_ID" è stato trovato:', METADATA_PROGRAM_ID.toBase58 ? METADATA_PROGRAM_ID.toBase58() : METADATA_PROGRAM_ID);
     }
