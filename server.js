@@ -29,14 +29,15 @@ try {
     const metaplex = require('@metaplex-foundation/mpl-token-metadata');
     console.log('[SERVER - STARTUP] Libreria @metaplex-foundation/mpl-token-metadata caricata.');
 
+    // Cerca la funzione corretta, dato che i nomi sono cambiati tra le versioni
     const possibleFunctionNames = [
+        'createCreateMetadataAccountV3Instruction', // Nome più recente
         'createMetadataAccountV3Instruction',
-        'createMetadataAccountV3',
-        'createCreateMetadataAccountV3Instruction'
+        'createMetadataAccountV3'
     ];
 
     for (const name of possibleFunctionNames) {
-        if (metaplex[name]) {
+        if (typeof metaplex[name] === 'function') {
             createMetadataInstructionFunction = metaplex[name];
             console.log(`[SERVER - STARTUP] Trovata funzione di creazione metadati valida: "${name}"`);
             break;
@@ -171,13 +172,17 @@ wss.on('connection', (ws) => {
                 
                 const metadataPDA = PublicKey.findProgramAddressSync([Buffer.from('metadata'), METADATA_PROGRAM_ID.toBuffer(), mint.toBuffer()], METADATA_PROGRAM_ID)[0];
                 
-                const instructionArgs = {
+                // CORREZIONE FINALE: La funzione si aspetta un oggetto per gli accounts e uno per gli args.
+                const accounts = {
                     metadata: metadataPDA,
                     mint: mint,
                     mintAuthority: mintAuthority,
                     payer: payer,
                     updateAuthority: mintAuthority,
                     systemProgram: SystemProgram.programId, // <-- ACCOUNT MANCANTE AGGIUNTO QUI
+                };
+
+                const args = {
                     createMetadataAccountArgsV3: {
                         data: {
                             name: name,
@@ -192,7 +197,8 @@ wss.on('connection', (ws) => {
                         collectionDetails: null,
                     }
                 };
-                const createMetadataInstruction = createMetadataInstructionFunction(instructionArgs);
+
+                const createMetadataInstruction = createMetadataInstructionFunction(accounts, args);
 
 
                 // 3. Creazione e invio della transazione serializzata
