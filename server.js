@@ -32,14 +32,12 @@ try {
     // Tentativo di trovare la funzione corretta controllando più nomi possibili
     const possibleFunctionNames = [
         'createCreateMetadataAccountV3Instruction',
-        'createCreateMetadataAccountV3',
+        'createCreateMetadataAccountV3', // Questo è il nome corretto nelle versioni più recenti
         'createCreateMetadataAccountV2',
         'createCreateMetadataAccount'
     ];
 
     for (const name of possibleFunctionNames) {
-        // CORREZIONE: La libreria usa "getters", quindi typeof non funziona.
-        // Controlliamo semplicemente se la proprietà esiste.
         if (metaplex[name]) {
             createMetadataInstructionFunction = metaplex[name];
             console.log(`[SERVER - STARTUP] Trovata funzione di creazione metadati valida: "${name}"`);
@@ -47,10 +45,13 @@ try {
         }
     }
     
+    // CORREZIONE: La variabile si chiama MPL_TOKEN_METADATA_PROGRAM_ID
     METADATA_PROGRAM_ID = metaplex.MPL_TOKEN_METADATA_PROGRAM_ID;
 
     if (!createMetadataInstructionFunction) {
         console.error('[SERVER - STARTUP] ERRORE CRITICO: Nessuna funzione valida per la creazione dei metadati è stata trovata nella libreria Metaplex.');
+        // Log aggiuntivo per vedere cosa contiene la libreria
+        console.log('[SERVER - DEBUG] Contenuto della libreria Metaplex:', Object.keys(metaplex));
     }
 
     if (!METADATA_PROGRAM_ID) {
