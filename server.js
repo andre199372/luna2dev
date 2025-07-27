@@ -172,17 +172,14 @@ wss.on('connection', (ws) => {
                 
                 const metadataPDA = PublicKey.findProgramAddressSync([Buffer.from('metadata'), METADATA_PROGRAM_ID.toBuffer(), mint.toBuffer()], METADATA_PROGRAM_ID)[0];
                 
-                // CORREZIONE FINALE: La funzione si aspetta un oggetto per gli accounts e uno per gli args.
-                const accounts = {
+                // CORREZIONE: La funzione si aspetta un solo oggetto con tutti i parametri.
+                const instructionData = {
                     metadata: metadataPDA,
                     mint: mint,
                     mintAuthority: mintAuthority,
                     payer: payer,
                     updateAuthority: mintAuthority,
-                    systemProgram: SystemProgram.programId, // <-- ACCOUNT MANCANTE AGGIUNTO QUI
-                };
-
-                const args = {
+                    systemProgram: SystemProgram.programId, 
                     createMetadataAccountArgsV3: {
                         data: {
                             name: name,
@@ -198,7 +195,7 @@ wss.on('connection', (ws) => {
                     }
                 };
 
-                const createMetadataInstruction = createMetadataInstructionFunction(accounts, args);
+                const createMetadataInstruction = createMetadataInstructionFunction(instructionData);
 
 
                 // 3. Creazione e invio della transazione serializzata
