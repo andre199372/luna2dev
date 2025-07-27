@@ -172,34 +172,33 @@ wss.on('connection', (ws) => {
                 
                 const metadataPDA = PublicKey.findProgramAddressSync([Buffer.from('metadata'), METADATA_PROGRAM_ID.toBuffer(), mint.toBuffer()], METADATA_PROGRAM_ID)[0];
                 
-                // CORREZIONE DEFINITIVA: Unisci gli argomenti e gli accounts in un unico oggetto.
-                const instructionData = {
-                    accounts: {
-                        metadata: metadataPDA,
-                        mint: mint,
-                        mintAuthority: mintAuthority,
-                        payer: payer,
-                        updateAuthority: mintAuthority,
-                        systemProgram: SystemProgram.programId,
-                    },
-                    args: {
-                        createMetadataAccountArgsV3: {
-                            data: {
-                                name: name,
-                                symbol: symbol,
-                                uri: metadataUrl,
-                                creators: null,
-                                sellerFeeBasisPoints: 0,
-                                uses: null,
-                                collection: null,
-                            },
-                            isMutable: !options.revoke_update_authority,
-                            collectionDetails: null,
-                        }
+                // CORREZIONE FINALE: La struttura degli argomenti è stata corretta.
+                const accounts = {
+                    metadata: metadataPDA,
+                    mint: mint,
+                    mintAuthority: mintAuthority,
+                    payer: payer,
+                    updateAuthority: mintAuthority,
+                    systemProgram: SystemProgram.programId,
+                };
+                
+                const args = {
+                    createMetadataAccountArgsV3: {
+                        data: {
+                            name: name,
+                            symbol: symbol,
+                            uri: metadataUrl,
+                            creators: null,
+                            sellerFeeBasisPoints: 0,
+                            uses: null,
+                            collection: null,
+                        },
+                        isMutable: !options.revoke_update_authority,
+                        collectionDetails: null,
                     }
                 };
 
-                const createMetadataInstruction = createMetadataInstructionFunction(instructionData.accounts, instructionData.args);
+                const createMetadataInstruction = createMetadataInstructionFunction(accounts, args);
 
 
                 // 3. Creazione e invio della transazione serializzata
