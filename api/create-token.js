@@ -175,6 +175,51 @@ async function uploadMetadataToIPFS({ name, symbol, description, imageBase64, cr
     }
 }
 
+// Simplified metadata instruction creation
+function createMetadataInstruction(metadataPDA, mint, payer, name, symbol, uri, isMutable) {
+    const { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, TransactionInstruction } = require('@solana/web3.js');
+    const METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
+    
+    // Instruction accounts
+    const keys = [
+        { pubkey: metadataPDA, isSigner: false, isWritable: true },
+        { pubkey: mint, isSigner: false, isWritable: false },
+        { pubkey: payer, isSigner: true, isWritable: false }, // mint authority
+        { pubkey: payer, isSigner: true, isWritable: true }, // payer
+        { pubkey: payer, isSigner: false, isWritable: false }, // update authority
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }
+    ];
+
+    // Simple instruction data for CreateMetadataAccountV3
+    const nameBytes = Buffer.from(name, 'utf8');
+    const symbolBytes = Buffer.from(symbol, 'utf8');
+    const uriBytes = Buffer.from(uri, 'utf8');
+    
+    const data = Buffer.concat([
+        Buffer.from([33]), // CreateMetadataAccountV3 instruction discriminator
+        // Data V2 structure
+        Buffer.from([nameBytes.length, 0, 0, 0]), // name length (u32)
+        nameBytes,
+        Buffer.from([symbolBytes.length, 0, 0, 0]), // symbol length (u32) 
+        symbolBytes,
+        Buffer.from([uriBytes.length, 0, 0, 0]), // uri length (u32)
+        uriBytes,
+        Buffer.from([0, 0]), // seller_fee_basis_points (u16) = 0
+        Buffer.from([0]), // creators option = None
+        Buffer.from([0]), // collection option = None
+        Buffer.from([0]), // uses option = None
+        Buffer.from([isMutable ? 1 : 0]), // is_mutable
+        Buffer.from([0]) // collection_details option = None
+    ]);
+
+    return new TransactionInstruction({
+        keys,
+        programId: METADATA_PROGRAM_ID,
+        data
+    });
+}
+
 async function buildTokenTransaction(params) {
     try {
         const { 
@@ -201,6 +246,13 @@ async function buildTokenTransaction(params) {
         const lamports = await connection.getMinimumBalanceForRentExemption(splToken.MINT_SIZE);
         const associatedTokenAccount = await splToken.getAssociatedTokenAddress(mint, payer);
         
+        // Metadata setup
+        const METADATA_PROGRAM_ID = new web3.PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
+        const [metadataPDA] = web3.PublicKey.findProgramAddressSync(
+            [Buffer.from('metadata'), METADATA_PROGRAM_ID.toBuffer(), mint.toBuffer()],
+            METADATA_PROGRAM_ID
+        );
+        
         const instructions = [
             // Create mint account
             web3.SystemProgram.createAccount({ 
@@ -215,7 +267,9 @@ async function buildTokenTransaction(params) {
             // Create associated token account
             splToken.createAssociatedTokenAccountInstruction(payer, associatedTokenAccount, payer, mint),
             // Mint tokens to the associated account
-            splToken.createMintToInstruction(mint, associatedTokenAccount, payer, BigInt(supply) * BigInt(10 ** decimals))
+            splToken.createMintToInstruction(mint, associatedTokenAccount, payer, BigInt(supply) * BigInt(10 ** decimals)),
+            // Create metadata account
+            createMetadataInstruction(metadataPDA, mint, payer, name, symbol, metadataUrl, !options?.revoke_update_authority)
         ];
 
         // If mint authority should be revoked, add instruction to set it to null
@@ -239,7 +293,8 @@ async function buildTokenTransaction(params) {
         console.log('[API] Transaction built successfully with authorities:', {
             mintAuthority: options?.revoke_mint_authority ? 'REVOKED' : 'RETAINED',
             freezeAuthority: options?.freeze_authority ? 'RETAINED' : 'REVOKED',
-            updateAuthority: 'N/A (no metadata for now)'
+            updateAuthority: options?.revoke_update_authority ? 'REVOKED' : 'RETAINED',
+            metadata: 'CREATED'
         });
         
         return transaction.serialize({ 
