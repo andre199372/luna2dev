@@ -1,11 +1,4 @@
-async function uploadMetadataToIPFS({ name, symbol, description, imageBase64, creator, social }) {
-    try {
-        const metadata = { 
-            name, 
-            symbol, 
-            description: description || '', 
-            seller_fee_basis_points: 0, 
-            properties: { files: [],// api/create-token.js
+// api/create-token.js
 const axios = require('axios');
 const FormData = require('form-data');
 
@@ -52,58 +45,21 @@ module.exports = async function handler(req, res) {
 
         // Then try to load Solana libraries
         console.log('[API] Loading Solana libraries...');
-        let Connection, PublicKey, Transaction, SystemProgram, clusterApiUrl, SYSVAR_RENT_PUBKEY;
-        let createInitializeMintInstruction, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction;
-        let createMintToInstruction, MINT_SIZE, TOKEN_PROGRAM_ID;
-        let createCreateMetadataAccountV3Instruction, METADATA_PROGRAM_ID;
-
-        try {
-            const web3 = require('@solana/web3.js');
-            const splToken = require('@solana/spl-token');
-            const mplMetadata = require('@metaplex-foundation/mpl-token-metadata');
-            
-            Connection = web3.Connection;
-            PublicKey = web3.PublicKey;
-            Transaction = web3.Transaction;
-            SystemProgram = web3.SystemProgram;
-            clusterApiUrl = web3.clusterApiUrl;
-            SYSVAR_RENT_PUBKEY = web3.SYSVAR_RENT_PUBKEY;
-            
-            createInitializeMintInstruction = splToken.createInitializeMintInstruction;
-            getAssociatedTokenAddress = splToken.getAssociatedTokenAddress;
-            createAssociatedTokenAccountInstruction = splToken.createAssociatedTokenAccountInstruction;
-            createMintToInstruction = splToken.createMintToInstruction;
-            MINT_SIZE = splToken.MINT_SIZE;
-            TOKEN_PROGRAM_ID = splToken.TOKEN_PROGRAM_ID;
-            
-            createCreateMetadataAccountV3Instruction = mplMetadata.createCreateMetadataAccountV3Instruction;
-            METADATA_PROGRAM_ID = mplMetadata.PROGRAM_ID;
-            
-            console.log('[API] Solana libraries loaded successfully');
-        } catch (libError) {
-            console.error('[API] Error loading Solana libraries:', libError);
-            throw new Error(`Failed to load Solana libraries: ${libError.message}`);
-        }
+        
+        const web3 = require('@solana/web3.js');
+        const splToken = require('@solana/spl-token');
+        const mplMetadata = require('@metaplex-foundation/mpl-token-metadata');
+        
+        console.log('[API] Solana libraries loaded successfully');
 
         // Build transaction
         console.log('[API] Building transaction...');
         const serializedTransaction = await buildTokenTransaction({ 
             ...data, 
             metadataUrl,
-            Connection,
-            PublicKey,
-            Transaction,
-            SystemProgram,
-            clusterApiUrl,
-            SYSVAR_RENT_PUBKEY,
-            createInitializeMintInstruction,
-            getAssociatedTokenAddress,
-            createAssociatedTokenAccountInstruction,
-            createMintToInstruction,
-            MINT_SIZE,
-            TOKEN_PROGRAM_ID,
-            createCreateMetadataAccountV3Instruction,
-            METADATA_PROGRAM_ID
+            web3,
+            splToken,
+            mplMetadata
         });
         console.log('[API] Transaction built successfully.');
 
@@ -225,10 +181,7 @@ async function buildTokenTransaction(params) {
     try {
         const { 
             name, symbol, decimals, supply, recipient, mintAddress, metadataUrl, options,
-            Connection, PublicKey, Transaction, SystemProgram, clusterApiUrl, SYSVAR_RENT_PUBKEY,
-            createInitializeMintInstruction, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction,
-            createMintToInstruction, MINT_SIZE, TOKEN_PROGRAM_ID,
-            createCreateMetadataAccountV3Instruction, METADATA_PROGRAM_ID
+            web3, splToken, mplMetadata
         } = params;
         
         console.log('[API] Building transaction with params:', {
@@ -242,29 +195,28 @@ async function buildTokenTransaction(params) {
             options
         });
         
-        const connection = new Connection(clusterApiUrl('mainnet-beta'), 'confirmed');
-        const mint = new PublicKey(mintAddress);
-        const payer = new PublicKey(recipient);
-        const mintAuthority = options?.revoke_mint_authority ? null : payer;
+        const connection = new web3.Connection(web3.clusterApiUrl('mainnet-beta'), 'confirmed');
+        const mint = new web3.PublicKey(mintAddress);
+        const payer = new web3.PublicKey(recipient);
         const freezeAuthority = options?.freeze_authority ? payer : null;
         const updateAuthority = options?.revoke_update_authority ? null : payer;
         
-        const lamports = await connection.getMinimumBalanceForRentExemption(MINT_SIZE);
-        const associatedTokenAccount = await getAssociatedTokenAddress(mint, payer);
+        const lamports = await connection.getMinimumBalanceForRentExemption(splToken.MINT_SIZE);
+        const associatedTokenAccount = await splToken.getAssociatedTokenAddress(mint, payer);
         
-        const [metadataPDA] = PublicKey.findProgramAddressSync(
-            [Buffer.from('metadata'), METADATA_PROGRAM_ID.toBuffer(), mint.toBuffer()],
-            METADATA_PROGRAM_ID
+        const [metadataPDA] = web3.PublicKey.findProgramAddressSync(
+            [Buffer.from('metadata'), mplMetadata.PROGRAM_ID.toBuffer(), mint.toBuffer()],
+            mplMetadata.PROGRAM_ID
         );
 
         const accounts = {
             metadata: metadataPDA,
             mint: mint,
-            mintAuthority: payer, // Always use payer initially for mint creation
+            mintAuthority: payer,
             payer: payer,
-            updateAuthority: updateAuthority || payer, // Use payer if revoked
-            systemProgram: SystemProgram.programId,
-            rent: SYSVAR_RENT_PUBKEY,
+            updateAuthority: updateAuthority || payer,
+            systemProgram: web3.SystemProgram.programId,
+            rent: web3.SYSVAR_RENT_PUBKEY,
         };
         
         const dataV2 = {
@@ -285,41 +237,40 @@ async function buildTokenTransaction(params) {
             },
         };
         
-        const createMetadataInstruction = createCreateMetadataAccountV3Instruction(accounts, args);
+        const createMetadataInstruction = mplMetadata.createCreateMetadataAccountV3Instruction(accounts, args);
         
         const instructions = [
             // Create mint account
-            SystemProgram.createAccount({ 
+            web3.SystemProgram.createAccount({ 
                 fromPubkey: payer, 
                 newAccountPubkey: mint, 
-                space: MINT_SIZE, 
+                space: splToken.MINT_SIZE, 
                 lamports, 
-                programId: TOKEN_PROGRAM_ID 
+                programId: splToken.TOKEN_PROGRAM_ID 
             }),
             // Initialize mint with initial authorities
-            createInitializeMintInstruction(mint, decimals, payer, freezeAuthority),
+            splToken.createInitializeMintInstruction(mint, decimals, payer, freezeAuthority),
             // Create associated token account
-            createAssociatedTokenAccountInstruction(payer, associatedTokenAccount, payer, mint),
+            splToken.createAssociatedTokenAccountInstruction(payer, associatedTokenAccount, payer, mint),
             // Mint tokens to the associated account
-            createMintToInstruction(mint, associatedTokenAccount, payer, BigInt(supply) * BigInt(10 ** decimals)),
+            splToken.createMintToInstruction(mint, associatedTokenAccount, payer, BigInt(supply) * BigInt(10 ** decimals)),
             // Create metadata
             createMetadataInstruction
         ];
 
         // If mint authority should be revoked, add instruction to set it to null
         if (options?.revoke_mint_authority) {
-            const { createSetAuthorityInstruction, AuthorityType } = require('@solana/spl-token');
             instructions.push(
-                createSetAuthorityInstruction(
+                splToken.createSetAuthorityInstruction(
                     mint, // mint
                     payer, // current authority
-                    AuthorityType.MintTokens, // authority type
+                    splToken.AuthorityType.MintTokens, // authority type
                     null // new authority (null = revoke)
                 )
             );
         }
         
-        const transaction = new Transaction().add(...instructions);
+        const transaction = new web3.Transaction().add(...instructions);
         
         transaction.feePayer = payer;
         const { blockhash } = await connection.getLatestBlockhash('confirmed');
