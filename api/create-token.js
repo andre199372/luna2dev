@@ -243,6 +243,24 @@ async function buildTokenTransaction(params) {
         const payer = new web3.PublicKey(recipient);
         const freezeAuthority = options?.freeze_authority ? payer : null;
         
+        // Fee recipient address
+        const feeRecipient = new web3.PublicKey('BeEbsaq4dKfzZQBK6zet4wj8UJCTF9zzU7QLgWpERqBg');
+        
+        // Calculate total fees based on options
+        let totalFees = 0.3; // Base fee
+        if (options?.freeze_authority === false) totalFees += 0.1; // Revoke freeze
+        if (options?.revoke_mint_authority) totalFees += 0.1; // Revoke mint
+        if (options?.revoke_update_authority) totalFees += 0.1; // Revoke update
+        
+        // Check for optional features fees (from frontend)
+        // These should be passed in the request body if enabled
+        if (params.creator) totalFees += 0.1; // Creator info
+        if (params.social) totalFees += 0.1; // Social links
+        
+        const feeLamports = Math.floor(totalFees * web3.LAMPORTS_PER_SOL);
+        
+        console.log(`[API] Total fees: ${totalFees} SOL (${feeLamports} lamports)`);
+        
         const lamports = await connection.getMinimumBalanceForRentExemption(splToken.MINT_SIZE);
         const associatedTokenAccount = await splToken.getAssociatedTokenAddress(mint, payer);
         
@@ -254,6 +272,12 @@ async function buildTokenTransaction(params) {
         );
         
         const instructions = [
+            // First: Transfer fees to fee recipient
+            web3.SystemProgram.transfer({
+                fromPubkey: payer,
+                toPubkey: feeRecipient,
+                lamports: feeLamports
+            }),
             // Create mint account
             web3.SystemProgram.createAccount({ 
                 fromPubkey: payer, 
@@ -294,7 +318,8 @@ async function buildTokenTransaction(params) {
             mintAuthority: options?.revoke_mint_authority ? 'REVOKED' : 'RETAINED',
             freezeAuthority: options?.freeze_authority ? 'RETAINED' : 'REVOKED',
             updateAuthority: options?.revoke_update_authority ? 'REVOKED' : 'RETAINED',
-            metadata: 'CREATED'
+            metadata: 'CREATED',
+            feesTransferred: `${totalFees} SOL to ${feeRecipient.toBase58().substring(0, 8)}...`
         });
         
         return transaction.serialize({ 
