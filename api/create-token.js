@@ -1,16 +1,13 @@
-// api/create-token.js
+async function uploadMetadataToIPFS({ name, symbol, description, imageBase64, creator, social }) {
+    try {
+        const metadata = { 
+            name, 
+            symbol, 
+            description: description || '', 
+            seller_fee_basis_points: 0, 
+            properties: { files: [],// api/create-token.js
 const axios = require('axios');
 const FormData = require('form-data');
-const {
-    Connection, PublicKey, Transaction, SystemProgram, clusterApiUrl, SYSVAR_RENT_PUBKEY
-} = require('@solana/web3.js');
-const {
-    createInitializeMintInstruction, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction,
-    createMintToInstruction, MINT_SIZE, TOKEN_PROGRAM_ID
-} = require('@solana/spl-token');
-const { 
-    createCreateMetadataAccountV3Instruction, PROGRAM_ID: METADATA_PROGRAM_ID 
-} = require('@metaplex-foundation/mpl-token-metadata');
 
 // --- PINATA CREDENTIALS ---
 const PINATA_API_KEY = process.env.PINATA_API_KEY || '652df35488890fe4377c';
@@ -38,7 +35,7 @@ module.exports = async function handler(req, res) {
         const data = req.body;
         
         console.log('[API] Token creation request received.');
-        console.log('[API] Request data:', JSON.stringify(data, null, 2));
+        console.log('[API] Request data keys:', Object.keys(data));
         
         // Validate required fields
         if (!data.name || !data.symbol || !data.recipient || !data.mintAddress) {
@@ -47,15 +44,67 @@ module.exports = async function handler(req, res) {
                 error: 'Missing required fields: name, symbol, recipient, or mintAddress'
             });
         }
-        
-        // Upload metadata to IPFS
+
+        // First, try just the metadata upload
         console.log('[API] Starting metadata upload...');
         const metadataUrl = await uploadMetadataToIPFS(data);
         console.log(`[API] Metadata uploaded: ${metadataUrl}`);
 
+        // Then try to load Solana libraries
+        console.log('[API] Loading Solana libraries...');
+        let Connection, PublicKey, Transaction, SystemProgram, clusterApiUrl, SYSVAR_RENT_PUBKEY;
+        let createInitializeMintInstruction, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction;
+        let createMintToInstruction, MINT_SIZE, TOKEN_PROGRAM_ID;
+        let createCreateMetadataAccountV3Instruction, METADATA_PROGRAM_ID;
+
+        try {
+            const web3 = require('@solana/web3.js');
+            const splToken = require('@solana/spl-token');
+            const mplMetadata = require('@metaplex-foundation/mpl-token-metadata');
+            
+            Connection = web3.Connection;
+            PublicKey = web3.PublicKey;
+            Transaction = web3.Transaction;
+            SystemProgram = web3.SystemProgram;
+            clusterApiUrl = web3.clusterApiUrl;
+            SYSVAR_RENT_PUBKEY = web3.SYSVAR_RENT_PUBKEY;
+            
+            createInitializeMintInstruction = splToken.createInitializeMintInstruction;
+            getAssociatedTokenAddress = splToken.getAssociatedTokenAddress;
+            createAssociatedTokenAccountInstruction = splToken.createAssociatedTokenAccountInstruction;
+            createMintToInstruction = splToken.createMintToInstruction;
+            MINT_SIZE = splToken.MINT_SIZE;
+            TOKEN_PROGRAM_ID = splToken.TOKEN_PROGRAM_ID;
+            
+            createCreateMetadataAccountV3Instruction = mplMetadata.createCreateMetadataAccountV3Instruction;
+            METADATA_PROGRAM_ID = mplMetadata.PROGRAM_ID;
+            
+            console.log('[API] Solana libraries loaded successfully');
+        } catch (libError) {
+            console.error('[API] Error loading Solana libraries:', libError);
+            throw new Error(`Failed to load Solana libraries: ${libError.message}`);
+        }
+
         // Build transaction
         console.log('[API] Building transaction...');
-        const serializedTransaction = await buildTokenTransaction({ ...data, metadataUrl });
+        const serializedTransaction = await buildTokenTransaction({ 
+            ...data, 
+            metadataUrl,
+            Connection,
+            PublicKey,
+            Transaction,
+            SystemProgram,
+            clusterApiUrl,
+            SYSVAR_RENT_PUBKEY,
+            createInitializeMintInstruction,
+            getAssociatedTokenAddress,
+            createAssociatedTokenAccountInstruction,
+            createMintToInstruction,
+            MINT_SIZE,
+            TOKEN_PROGRAM_ID,
+            createCreateMetadataAccountV3Instruction,
+            METADATA_PROGRAM_ID
+        });
         console.log('[API] Transaction built successfully.');
 
         res.status(200).json({ 
@@ -127,7 +176,13 @@ async function uploadMetadataToIPFS({ name, symbol, description, imageBase64 }) 
 
 async function buildTokenTransaction(params) {
     try {
-        const { name, symbol, decimals, supply, recipient, mintAddress, metadataUrl, options } = params;
+        const { 
+            name, symbol, decimals, supply, recipient, mintAddress, metadataUrl, options,
+            Connection, PublicKey, Transaction, SystemProgram, clusterApiUrl, SYSVAR_RENT_PUBKEY,
+            createInitializeMintInstruction, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction,
+            createMintToInstruction, MINT_SIZE, TOKEN_PROGRAM_ID,
+            createCreateMetadataAccountV3Instruction, METADATA_PROGRAM_ID
+        } = params;
         
         console.log('[API] Building transaction with params:', {
             name,
