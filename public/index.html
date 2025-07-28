@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -392,14 +393,15 @@
             transition: all var(--transition-slow);
             max-height: 0;
             opacity: 0;
-            padding: 0 var(--space-lg);
+            padding: 0;
         }
 
-        .toggle-switch.active + .expandable-section {
+        .expandable-section.active {
             max-height: 800px;
             opacity: 1;
             padding: var(--space-lg);
             border-top: 1px solid var(--border-secondary);
+            margin-top: var(--space-md);
         }
 
         /* ====================
@@ -984,8 +986,10 @@
                     
                     if (isActive) {
                         section.classList.remove('hidden');
+                        section.classList.add('active');
                     } else {
                         section.classList.add('hidden');
+                        section.classList.remove('active');
                     }
                     
                     updateTotalFee();
