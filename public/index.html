@@ -7,117 +7,211 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     <style>
+        /* --- Import Font & Define CSS Variables --- */
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+        :root {
+            --primary-glow: #9333ea;      /* Purple */
+            --secondary-glow: #3b82f6;    /* Blue */
+            --success-glow: #10b981;      /* Green */
+            --warning-glow: #f59e0b;      /* Orange */
+            --bg-primary: #0f1014;
+            --bg-secondary: #18191e;
+            --bg-tertiary: #2a2c33;
+            --border-color: #33353e;
+            --text-primary: #f8f9fa;
+            --text-secondary: #9ca3af;
+            --text-tertiary: #6b7280;
+        }
+
+        /* --- Base & Animated Background --- */
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-            background: #0a0a0a;
-            color: #fff; 
+
+        body {
+            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
             min-height: 100vh;
             overflow-x: hidden;
+            position: relative;
         }
 
-        /* Header */
-        header { 
-            text-align: center; 
-            padding: 30px 20px 20px; 
-            background: rgba(0, 0, 0, 0.8);
-            border-bottom: 1px solid #333;
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 20% 20%, rgba(147, 51, 234, 0.15), transparent 30%),
+                        radial-gradient(circle at 80% 70%, rgba(59, 130, 246, 0.15), transparent 30%);
+            z-index: -1;
+            animation: move-glow 20s infinite alternate ease-in-out;
         }
 
-        .logo { 
-            font-size: 2.5rem; 
-            font-weight: 700; 
-            color: #fff;
-            margin-bottom: 10px;
+        @keyframes move-glow {
+            from { transform: translate(0, 0); }
+            to { transform: translate(50px, 100px); }
+        }
+
+        /* --- Header --- */
+        header {
+            text-align: center;
+            padding: 40px 20px 30px;
+            background: rgba(15, 16, 20, 0.5);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .logo {
+            font-size: 2.8rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, var(--primary-glow), var(--secondary-glow));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 8px;
+            animation: text-glow 2s infinite alternate;
+        }
+
+        @keyframes text-glow {
+            from { text-shadow: 0 0 5px var(--primary-glow), 0 0 10px var(--secondary-glow); }
+            to { text-shadow: 0 0 10px var(--primary-glow), 0 0 20px var(--secondary-glow); }
         }
 
         .tagline {
             font-size: 1.1rem;
-            color: #888;
+            color: var(--text-secondary);
             font-weight: 400;
         }
 
-        /* Main container */
-        main { 
-            display: flex; 
-            justify-content: center; 
-            padding: 40px 20px; 
-            min-height: calc(100vh - 200px);
+        /* --- Main Content & Container --- */
+        main {
+            display: flex;
+            justify-content: center;
+            padding: 50px 20px;
+            animation: fade-in 1s ease-out;
         }
 
-        .container { 
-            max-width: 600px; 
-            width: 100%; 
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Form styling */
-        .form { 
-            background: #1a1a1a;
-            border-radius: 16px; 
-            padding: 30px; 
-            border: 1px solid #333;
+        .container {
+            max-width: 650px;
+            width: 100%;
         }
 
-        .form-group { 
-            margin-bottom: 24px; 
+        /* --- Form Styling --- */
+        .form {
+            background: var(--bg-secondary);
+            border-radius: 24px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
         }
 
-        label { 
-            display: block; 
-            font-weight: 500; 
-            margin-bottom: 8px; 
-            color: #fff;
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 10px;
+            color: var(--text-secondary);
             font-size: 14px;
         }
 
-        input, textarea { 
-            width: 100%; 
-            background: #2a2a2a;
-            border: 1px solid #444;
-            border-radius: 8px; 
-            color: white; 
-            padding: 12px 16px; 
-            font-size: 14px; 
-            transition: all 0.2s ease;
+        input, textarea {
+            width: 100%;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            color: var(--text-primary);
+            padding: 14px 18px;
+            font-size: 15px;
+            transition: all 0.3s ease;
             font-family: inherit;
         }
 
         input:focus, textarea:focus {
             outline: none;
-            border-color: #666;
-            background: #333;
+            border-color: var(--primary-glow);
+            background: var(--bg-secondary);
+            box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.3);
         }
 
-        input::placeholder, textarea::placeholder {
-            color: #666;
+        input::placeholder, textarea::placeholder { color: var(--text-tertiary); }
+
+        textarea { resize: vertical; min-height: 80px; }
+
+        /* --- Upload Area --- */
+        .upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--bg-tertiary);
         }
 
-        /* Toggle switches */
+        .upload-area:hover {
+            border-color: var(--primary-glow);
+            background: var(--bg-secondary);
+        }
+
+        .upload-area span {
+            color: var(--text-secondary);
+            font-size: 14px;
+            transition: color 0.3s ease;
+        }
+
+        .upload-area:hover span { color: var(--text-primary); }
+
+        #logo-preview {
+            max-width: 100px;
+            max-height: 100px;
+            margin-top: 16px;
+            border-radius: 50%;
+            display: none;
+            border: 2px solid var(--border-color);
+            animation: preview-pop-in 0.5s ease;
+        }
+
+        @keyframes preview-pop-in {
+            from { transform: scale(0.5); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        /* --- Toggle Switches & Optional Sections --- */
         .toggle-group {
-            margin-bottom: 32px;
+            margin-bottom: 24px;
+            background: var(--bg-primary);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
         }
 
         .toggle-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 20px 0;
-            border-bottom: 1px solid #333;
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
         }
 
-        .toggle-item:last-child {
-            border-bottom: none;
-        }
-
-        .toggle-content {
-            flex: 1;
-        }
+        .toggle-item:last-child { border-bottom: none; }
 
         .toggle-title {
             font-size: 16px;
-            font-weight: 500;
-            color: #fff;
+            font-weight: 600;
+            color: var(--text-primary);
             margin-bottom: 4px;
             display: flex;
             align-items: center;
@@ -126,90 +220,112 @@
 
         .toggle-description {
             font-size: 14px;
-            color: #888;
-            line-height: 1.4;
+            color: var(--text-secondary);
+            line-height: 1.5;
         }
 
         .toggle-price {
-            color: #ffa500;
-            font-weight: 500;
-            margin-left: 8px;
+            background: linear-gradient(90deg, var(--primary-glow), var(--warning-glow));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-weight: 600;
+            font-size: 12px;
         }
 
-        /* Toggle Switch */
         .toggle-switch {
             position: relative;
-            width: 44px;
-            height: 24px;
-            background: #333;
-            border-radius: 12px;
+            width: 50px;
+            height: 28px;
+            background: var(--bg-tertiary);
+            border-radius: 14px;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: background 0.3s ease;
+            border: 1px solid var(--border-color);
         }
 
         .toggle-switch.active {
-            background: #4CAF50;
+            background: var(--success-glow);
+            border-color: var(--success-glow);
         }
 
         .toggle-slider {
             position: absolute;
-            top: 2px;
-            left: 2px;
+            top: 3px;
+            left: 4px;
             width: 20px;
             height: 20px;
             background: #fff;
             border-radius: 50%;
-            transition: transform 0.2s;
+            transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         }
 
         .toggle-switch.active .toggle-slider {
-            transform: translateX(20px);
+            transform: translateX(21px);
         }
 
-        /* Authority Cards */
+        /* --- Animated Expandable Sections --- */
+        .expandable-section {
+            overflow: hidden;
+            transition: max-height 0.5s ease-out, opacity 0.4s ease-out, padding 0.5s ease-out;
+            max-height: 0;
+            opacity: 0;
+        }
+
+        .expandable-section:not(.hidden) {
+            max-height: 500px; /* Adjust if content is taller */
+            opacity: 1;
+            padding: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* --- Authority Section --- */
         .authority-section {
-            margin: 32px 0;
+            margin: 40px 0;
+            text-align: center;
         }
 
         .authority-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #fff;
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-primary);
             margin-bottom: 8px;
         }
 
         .authority-subtitle {
-            font-size: 14px;
-            color: #888;
-            margin-bottom: 24px;
-            line-height: 1.5;
+            font-size: 15px;
+            color: var(--text-secondary);
+            margin: 0 auto 24px;
+            line-height: 1.6;
+            max-width: 90%;
         }
 
         .authority-cards {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
+            gap: 20px;
         }
 
         .authority-card {
-            background: #2a2a2a;
-            border: 1px solid #444;
-            border-radius: 12px;
-            padding: 20px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
             cursor: pointer;
-            transition: all 0.2s ease;
-            position: relative;
+            transition: all 0.3s ease;
+            text-align: left;
         }
 
         .authority-card:hover {
-            border-color: #666;
-            background: #333;
+            transform: translateY(-5px);
+            border-color: var(--primary-glow);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         }
 
         .authority-card.active {
-            border-color: #4CAF50;
-            background: #2a3f2a;
+            border-color: var(--success-glow);
+            background: rgba(16, 185, 129, 0.1);
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
         }
 
         .authority-card-header {
@@ -222,665 +338,654 @@
         .authority-card-title {
             font-size: 16px;
             font-weight: 600;
-            color: #fff;
+            color: var(--text-primary);
         }
 
         .authority-card-checkbox {
-            width: 18px;
-            height: 18px;
-            border: 2px solid #666;
-            border-radius: 3px;
-            background: transparent;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--bg-primary);
             position: relative;
+            transition: all 0.3s ease;
         }
 
         .authority-card.active .authority-card-checkbox {
-            background: #4CAF50;
-            border-color: #4CAF50;
+            background: var(--success-glow);
+            border-color: var(--success-glow);
         }
 
         .authority-card.active .authority-card-checkbox::after {
             content: '✓';
             position: absolute;
-            top: -2px;
-            left: 2px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             color: white;
-            font-size: 12px;
+            font-size: 14px;
             font-weight: bold;
         }
 
         .authority-card-description {
             font-size: 13px;
-            color: #888;
-            line-height: 1.4;
+            color: var(--text-secondary);
+            line-height: 1.5;
             margin-bottom: 16px;
+            min-height: 55px; /* Ensures consistent card height */
         }
 
         .authority-card-price {
-            color: #ffa500;
-            font-weight: 500;
+            color: var(--warning-glow);
+            font-weight: 600;
             font-size: 14px;
         }
 
-        /* Button styling */
-        .btn { 
-            display: block; 
-            width: 100%; 
-            background: #fff;
-            color: #000; 
-            border: none; 
-            border-radius: 12px; 
-            padding: 16px; 
-            font-size: 16px; 
-            font-weight: 600; 
-            cursor: pointer; 
-            transition: all 0.2s ease;
+        /* --- Buttons --- */
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            background: linear-gradient(90deg, var(--primary-glow), var(--secondary-glow));
+            background-size: 200% 100%;
+            color: var(--text-primary);
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.4s ease;
             margin-top: 24px;
         }
 
-        .btn:hover:not(:disabled) { 
-            background: #f0f0f0;
+        .btn:hover:not(:disabled) {
+            background-position: right center;
+            box-shadow: 0 0 20px rgba(147, 51, 234, 0.5);
         }
 
-        .btn:disabled { 
-            background: #444;
-            color: #888;
+        .btn:disabled {
+            background: var(--bg-tertiary);
+            color: var(--text-tertiary);
             cursor: not-allowed;
+            box-shadow: none;
         }
 
         .btn-connect {
-            background: #333;
-            color: #fff;
-            border: 1px solid #555;
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
             margin-bottom: 16px;
+            gap: 8px;
         }
 
         .btn-connect:hover:not(:disabled) {
-            background: #444;
+            background: var(--bg-tertiary);
+            border-color: var(--primary-glow);
+            box-shadow: none;
         }
 
         .btn-connect.connected {
-            background: #2a4f2a;
-            border-color: #4CAF50;
-            color: #4CAF50;
+            background: rgba(16, 185, 129, 0.1);
+            border-color: var(--success-glow);
+            color: var(--success-glow);
+            cursor: default;
+            animation: connected-pulse 2s infinite;
         }
 
-        /* Upload area */
-        .upload-area { 
-            border: 2px dashed #444;
-            border-radius: 8px; 
-            padding: 24px; 
-            text-align: center; 
-            cursor: pointer;
-            transition: all 0.2s ease;
-            background: #2a2a2a;
+        @keyframes connected-pulse {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
         }
 
-        .upload-area:hover {
-            border-color: #666;
-            background: #333;
-        }
-
-        .upload-area span {
-            color: #888;
-            font-size: 14px;
-        }
-
-        #logo-preview { 
-            max-width: 100px; 
-            max-height: 100px; 
-            margin-top: 12px; 
-            border-radius: 8px; 
-            display: none;
-        }
-
-        /* Fee display */
+        /* --- Fee Display --- */
         .fee-display {
             text-align: center;
-            margin-top: 16px;
-            padding-top: 16px;
-            border-top: 1px solid #333;
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border-color);
         }
 
         .fee-text {
-            color: #888;
+            color: var(--text-secondary);
             font-size: 14px;
         }
 
         .fee-amount {
-            color: #fff;
+            color: var(--text-primary);
             font-weight: 600;
+            font-size: 16px;
         }
 
         .fee-crossed {
             text-decoration: line-through;
-            color: #666;
+            color: var(--text-tertiary);
             margin-right: 8px;
+            font-weight: 400;
         }
 
-        /* Footer */
-        footer { 
-            text-align: center; 
-            padding: 30px; 
-            background: #1a1a1a;
-            border-top: 1px solid #333;
-            margin-top: 40px;
+        /* --- Footer --- */
+        footer {
+            text-align: center;
+            padding: 40px;
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border-color);
+            margin-top: 60px;
         }
 
         footer p {
-            color: #666;
+            color: var(--text-tertiary);
             font-size: 14px;
         }
 
-        /* Responsive */
+        /* --- Responsive --- */
         @media (max-width: 768px) {
-            .authority-cards {
-                grid-template-columns: 1fr;
-            }
-            
-            .form { 
-                padding: 20px; 
-                margin: 10px;
-            }
-            
-            .logo { 
-                font-size: 2rem; 
-            }
-
-            main {
-                padding: 20px 10px;
-            }
+            .authority-cards { grid-template-columns: 1fr; }
+            .form { padding: 24px; margin: 10px; }
+            .logo { font-size: 2.2rem; }
+            main { padding: 20px 10px; }
         }
 
-        /* Loading animation */
+        /* --- Loading Animation --- */
         .loading-spinner {
-            width: 16px;
-            height: 16px;
-            border: 2px solid rgba(0, 0, 0, 0.3);
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
-            border-top-color: #000;
+            border-top-color: var(--text-primary);
             animation: spin 1s ease-in-out infinite;
-            display: inline-block;
-            margin-right: 8px;
+            margin-right: 12px;
         }
 
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
 
-        /* Hidden inputs */
-        .hidden-input {
-            display: none;
+        /* --- SweetAlert2 Customization --- */
+        .swal2-popup {
+            background: var(--bg-secondary) !important;
+            color: var(--text-primary) !important;
+            border-radius: 16px !important;
+            border: 1px solid var(--border-color) !important;
         }
+        .swal2-title { color: var(--text-primary) !important; }
+        .swal2-html-container { color: var(--text-secondary) !important; }
+        .swal2-styled.swal2-confirm {
+            background: linear-gradient(90deg, var(--primary-glow), var(--secondary-glow)) !important;
+            border-radius: 10px !important;
+            padding: 10px 30px !important;
+            transition: transform 0.2s ease;
+        }
+        .swal2-styled.swal2-confirm:hover { transform: scale(1.05); }
+        .swal2-styled.swal2-confirm:focus { box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.4) !important; }
+        .swal2-icon.swal2-success .swal2-success-line-tip,
+        .swal2-icon.swal2-success .swal2-success-line-long { background-color: var(--success-glow) !important; }
+        .swal2-icon.swal2-success .swal2-success-ring { border-color: var(--success-glow) !important; }
+        .swal2-icon.swal2-error .swal2-x-mark-line-left,
+        .swal2-icon.swal2-error .swal2-x-mark-line-right { background-color: #ef4444 !important; }
+        .swal2-icon.swal2-error { border-color: #ef4444 !important; }
+        .swal2-icon.swal2-info { border-color: var(--secondary-glow) !important; color: var(--secondary-glow) !important; }
 
-        .expandable-section {
-            margin-top: 16px;
-            padding-top: 16px;
-            border-top: 1px solid #333;
-        }
+        /* --- Hidden Utility --- */
+        .hidden-input, .hidden { display: none; }
 
-        .expandable-section.hidden {
-            display: none;
-        }
     </style>
 </head>
 <body>
     <header>
-        <div class="logo">Luna Launch</div>
-        <div class="tagline">Create Your Solana Token in Seconds</div>
-    </header>
-    
-    <main>
-        <div class="container">
-            <form class="form" id="token-form">
-                <!-- Basic Token Info -->
-                <div class="form-group">
-                    <label for="tokenName">Token Name</label>
-                    <input required type="text" id="tokenName" placeholder="e.g., My Amazing Token">
-                </div>
-                
-                <div class="form-group">
-                    <label for="tokenSymbol">Token Symbol</label>
-                    <input type="text" id="tokenSymbol" placeholder="e.g., MAT" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="tokenDecimals">Decimals</label>
-                    <input type="number" id="tokenDecimals" value="9" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="tokenSupply">Total Supply</label>
-                    <input type="number" id="tokenSupply" required value="1000000" placeholder="1000000">
-                </div>
-                
-                <div class="form-group">
-                    <label for="tokenDescription">Description</label>
-                    <textarea id="tokenDescription" rows="3" placeholder="Describe your token and its purpose..." required></textarea>
-                </div>
-                
-                <div class="form-group">
-                    <label>Token Logo (Optional)</label>
-                    <div class="upload-area" id="logoDropzone">
-                        <span>Click or drag to upload your logo</span>
-                        <input type="file" id="logoUpload" accept="image/*" style="display: none;">
-                        <img id="logo-preview" />
-                    </div>
-                </div>
+        <div class="logo">Luna Launch</div>
+        <div class="tagline">Create Your Solana Token in Seconds</div>
+    </header>
+    
+    <main>
+        <div class="container">
+            <form class="form" id="token-form">
+                                <div class="form-group">
+                    <label for="tokenName">Token Name</label>
+                    <input required type="text" id="tokenName" placeholder="e.g., My Amazing Token">
+                </div>
+                
+                <div class="form-group">
+                    <label for="tokenSymbol">Token Symbol</label>
+                    <input type="text" id="tokenSymbol" placeholder="e.g., MAT" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="tokenDecimals">Decimals</label>
+                    <input type="number" id="tokenDecimals" value="9" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="tokenSupply">Total Supply</label>
+                    <input type="number" id="tokenSupply" required value="1000000" placeholder="1000000">
+                </div>
+                
+                <div class="form-group">
+                    <label for="tokenDescription">Description</label>
+                    <textarea id="tokenDescription" rows="3" placeholder="Describe your token and its purpose..." required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Token Logo (Optional)</label>
+                    <div class="upload-area" id="logoDropzone">
+                        <span>Click or drag to upload your logo</span>
+                        <input type="file" id="logoUpload" accept="image/*" class="hidden-input">
+                        <img id="logo-preview" />
+                    </div>
+                </div>
 
-                <!-- Optional Sections -->
-                <div class="toggle-group">
-                    <div class="toggle-item">
-                        <div class="toggle-content">
-                            <div class="toggle-title">
-                                Creator's Info (Optional)
-                                <span class="toggle-price">+0.1 SOL</span>
-                            </div>
-                            <div class="toggle-description">
-                                Change the information of the creator in the metadata. By default, it is Luna Launch.
-                            </div>
-                        </div>
-                        <div class="toggle-switch" id="creatorToggle">
-                            <div class="toggle-slider"></div>
-                        </div>
-                    </div>
-                    
-                    <div class="expandable-section hidden" id="creatorSection">
-                        <div class="form-group">
-                            <label for="creatorName">Creator Name</label>
-                            <input type="text" id="creatorName" placeholder="Your name or company">
-                        </div>
-                        <div class="form-group">
-                            <label for="creatorAddress">Creator Wallet Address</label>
-                            <input type="text" id="creatorAddress" placeholder="Creator's wallet address">
-                        </div>
-                    </div>
+                                <div class="toggle-group">
+                    <div class="toggle-item">
+                        <div class="toggle-content">
+                            <div class="toggle-title">
+                                Creator's Info (Optional)
+                                <span class="toggle-price">+0.1 SOL</span>
+                            </div>
+                            <div class="toggle-description">
+                                Change the information of the creator in the metadata. By default, it is Luna Launch.
+                            </div>
+                        </div>
+                        <div class="toggle-switch" id="creatorToggle">
+                            <div class="toggle-slider"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="expandable-section hidden" id="creatorSection">
+                        <div class="form-group">
+                            <label for="creatorName">Creator Name</label>
+                            <input type="text" id="creatorName" placeholder="Your name or company">
+                        </div>
+         <div class="form-group">
+                            <label for="creatorAddress">Creator Wallet Address</label>
+                            <input type="text" id="creatorAddress" placeholder="Creator's wallet address">
+                        </div>
+                    </div>
 
-                    <div class="toggle-item">
-                        <div class="toggle-content">
-                            <div class="toggle-title">
-                                Add Social Links & Tags
-                                <span class="toggle-price">+0.1 SOL</span>
-                            </div>
-                            <div class="toggle-description">
-                                Add links to your token metadata.
-                            </div>
-                        </div>
-                        <div class="toggle-switch" id="socialToggle">
-                            <div class="toggle-slider"></div>
-                        </div>
-                    </div>
-                    
-                    <div class="expandable-section hidden" id="socialSection">
-                        <div class="form-group">
-                            <label for="website">Website</label>
-                            <input type="url" id="website" placeholder="https://yourwebsite.com">
-                        </div>
-                        <div class="form-group">
-                            <label for="twitter">Twitter</label>
-                            <input type="text" id="twitter" placeholder="@yourusername">
-                        </div>
-                        <div class="form-group">
-                            <label for="telegram">Telegram</label>
-                            <input type="text" id="telegram" placeholder="https://t.me/yourchannel">
-                        </div>
-                        <div class="form-group">
-                            <label for="discord">Discord</label>
-                            <input type="text" id="discord" placeholder="https://discord.gg/yourserver">
-                        </div>
-                    </div>
-                </div>
+                    <div class="toggle-item">
+                        <div class="toggle-content">
+                            <div class="toggle-title">
+                                Add Social Links & Tags
+                                <span class="toggle-price">+0.1 SOL</span>
+                            </div>
+                            <div class="toggle-description">
+                                Add links to your token metadata.
+                            </div>
+                        </div>
+                        <div class="toggle-switch" id="socialToggle">
+                            <div class="toggle-slider"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="expandable-section hidden" id="socialSection">
+                        <div class="form-group">
+                            <label for="website">Website</label>
+                            <input type="url" id="website" placeholder="https://yourwebsite.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="twitter">Twitter</label>
+                            <input type="text" id="twitter" placeholder="@yourusername">
+                        </div>
+                        <div class="form-group">
+                            <label for="telegram">Telegram</label>
+                            <input type="text" id="telegram" placeholder="https://t.me/yourchannel">
+                        </div>
+                        <div class="form-group">
+                            <label for="discord">Discord</label>
+                            <input type="text" id="discord" placeholder="https://discord.gg/yourserver">
+                        </div>
+                    </div>
+                </div>
 
-                <!-- Authority Section -->
-                <div class="authority-section">
-                    <div class="authority-title">Revoke Authorities (Investor's Booster)</div>
-                    <div class="authority-subtitle">
-                        Solana Token has 3 authorities: Freeze Authority, Mint Authority, and Update Authority. Revoke them to attract more investors.
-                    </div>
-                    
-                    <div class="authority-cards">
-                        <div class="authority-card" id="freezeCard">
-                            <div class="authority-card-header">
-                                <div class="authority-card-title">Revoke Freeze</div>
-                                <div class="authority-card-checkbox"></div>
-                            </div>
-                            <div class="authority-card-description">
-                                No one will be able to freeze holders' token accounts anymore
-                            </div>
-                            <div class="authority-card-price">+0.1 SOL</div>
-                        </div>
-                        
-                        <div class="authority-card" id="mintCard">
-                            <div class="authority-card-header">
-                                <div class="authority-card-title">Revoke Mint</div>
-                                <div class="authority-card-checkbox"></div>
-                            </div>
-                            <div class="authority-card-description">
-                                No one will be able to create more tokens anymore
-                            </div>
-                            <div class="authority-card-price">+0.1 SOL</div>
-                        </div>
-                        
-                        <div class="authority-card" id="updateCard">
-                            <div class="authority-card-header">
-                                <div class="authority-card-title">Revoke Update</div>
-                                <div class="authority-card-checkbox"></div>
-                            </div>
-                            <div class="authority-card-description">
-                                No one will be able to modify token metadata anymore
-                            </div>
-                            <div class="authority-card-price">+0.1 SOL</div>
-                        </div>
-                    </div>
-                </div>
+                                <div class="authority-section">
+                    <div class="authority-title">Revoke Authorities (Investor's Booster)</div>
+                    <div class="authority-subtitle">
+                        Solana Token has 3 authorities: Freeze Authority, Mint Authority, and Update Authority. Revoke them to attract more investors.
+                    </div>
+                    
+                    <div class="authority-cards">
+                        <div class="authority-card" id="freezeCard">
+                            <div class="authority-card-header">
+                                <div class="authority-card-title">Revoke Freeze</div>
+                                <div class="authority-card-checkbox"></div>
+                            </div>
+                            <div class="authority-card-description">
+                                No one will be able to freeze holders' token accounts anymore
+                            </div>
+                            <div class="authority-card-price">+0.1 SOL</div>
+                        </div>
+                        
+                        <div class="authority-card" id="mintCard">
+                            <div class="authority-card-header">
+                                <div class="authority-card-title">Revoke Mint</div>
+                                <div class="authority-card-checkbox"></div>
+                            </div>
+                            <div class="authority-card-description">
+                                No one will be able to create more tokens anymore
+                            </div>
+                            <div class="authority-card-price">+0.1 SOL</div>
+                        </div>
+                        
+                        <div class="authority-card" id="updateCard">
+                            <div class="authority-card-header">
+                                <div class="authority-card-title">Revoke Update</div>
+                                <div class="authority-card-checkbox"></div>
+                            </div>
+                            <div class="authority-card-description">
+                                No one will be able to modify token metadata anymore
+                            </div>
+                            <div class="authority-card-price">+0.1 SOL</div>
+                        </div>
+                    </div>
+                </div>
 
-                <!-- Wallet Connection -->
-                <div class="form-group">
-                    <label for="tokenRecipient">Recipient Wallet Address</label>
-                    <input type="text" id="tokenRecipient" placeholder="Connect wallet to auto-fill" required>
-                </div>
-                
-                <button type="button" class="btn btn-connect" id="connectWalletBtn">Connect Phantom Wallet</button>
-                <button type="submit" class="btn" id="launchTokenBtn">Launch Token</button>
-                
-                <div class="fee-display">
-                    <div class="fee-text">
-                        Total Fees: <span class="fee-crossed fee-amount">0.2+0.6 SOL</span> <span class="fee-amount" id="totalFee">0.3 SOL</span>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </main>
+                                <div class="form-group">
+                    <label for="tokenRecipient">Recipient Wallet Address</label>
+                    <input type="text" id="tokenRecipient" placeholder="Connect wallet to auto-fill" required>
+                </div>
+                
+                <button type="button" class="btn btn-connect" id="connectWalletBtn">Connect Phantom Wallet</button>
+                <button type="submit" class="btn" id="launchTokenBtn">Launch Token</button>
+                
+                <div class="fee-display">
+                    <div class="fee-text">
+                        Total Fees: <span class="fee-crossed fee-amount">0.2+0.6 SOL</span> <span class="fee-amount" id="totalFee">0.3 SOL</span>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </main>
 
-    <footer>
-        <p>© 2025 Luna Launch • Powered by Solana</p>
-    </footer>
-    
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const connectWalletBtn = document.getElementById('connectWalletBtn');
-            const launchTokenBtn = document.getElementById('launchTokenBtn');
-            const tokenRecipientInput = document.getElementById('tokenRecipient');
-            const logoDropzone = document.getElementById('logoDropzone');
-            const logoUpload = document.getElementById('logoUpload');
-            const logoPreview = document.getElementById('logo-preview');
-            
-            // Toggle switches
-            const creatorToggle = document.getElementById('creatorToggle');
-            const socialToggle = document.getElementById('socialToggle');
-            const creatorSection = document.getElementById('creatorSection');
-            const socialSection = document.getElementById('socialSection');
-            
-            // Authority cards
-            const freezeCard = document.getElementById('freezeCard');
-            const mintCard = document.getElementById('mintCard');
-            const updateCard = document.getElementById('updateCard');
-            const totalFeeDisplay = document.getElementById('totalFee');
-            
-            let mintKeypair;
-            let logoBase64 = null;
-            let selectedAuthorities = {
-                freeze: false,
-                mint: false,
-                update: false
-            };
-            let optionalFeatures = {
-                creator: false,
-                social: false
-            };
+    <footer>
+        <p>© 2025 Luna Launch • Powered by Solana</p>
+    </footer>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const connectWalletBtn = document.getElementById('connectWalletBtn');
+            const launchTokenBtn = document.getElementById('launchTokenBtn');
+            const tokenRecipientInput = document.getElementById('tokenRecipient');
+            const logoDropzone = document.getElementById('logoDropzone');
+            const logoUpload = document.getElementById('logoUpload');
+            const logoPreview = document.getElementById('logo-preview');
+            
+            // Toggle switches
+            const creatorToggle = document.getElementById('creatorToggle');
+            const socialToggle = document.getElementById('socialToggle');
+            const creatorSection = document.getElementById('creatorSection');
+            const socialSection = document.getElementById('socialSection');
+            
+            // Authority cards
+            const freezeCard = document.getElementById('freezeCard');
+            const mintCard = document.getElementById('mintCard');
+            const updateCard = document.getElementById('updateCard');
+            const totalFeeDisplay = document.getElementById('totalFee');
+            
+            let mintKeypair;
+            let logoBase64 = null;
+            let selectedAuthorities = {
+                freeze: false,
+                mint: false,
+                update: false
+            };
+            let optionalFeatures = {
+                creator: false,
+                social: false
+            };
 
-            // Toggle functionality
-            function setupToggle(toggle, section, feature) {
-                toggle.addEventListener('click', () => {
-                    const isActive = toggle.classList.toggle('active');
-                    optionalFeatures[feature] = isActive;
-                    
-                    if (isActive) {
-                        section.classList.remove('hidden');
-                    } else {
-                        section.classList.add('hidden');
-                    }
-                    
-                    updateTotalFee();
-                });
-            }
+            // Toggle functionality
+            function setupToggle(toggle, section, feature) {
+                toggle.addEventListener('click', () => {
+                    const isActive = toggle.classList.toggle('active');
+                    optionalFeatures[feature] = isActive;
+                    
+                    if (isActive) {
+                        section.classList.remove('hidden');
+                    } else {
+                        section.classList.add('hidden');
+                    }
+                    
+                    updateTotalFee();
+                });
+            }
 
-            setupToggle(creatorToggle, creatorSection, 'creator');
-            setupToggle(socialToggle, socialSection, 'social');
+            setupToggle(creatorToggle, creatorSection, 'creator');
+            setupToggle(socialToggle, socialSection, 'social');
 
-            // Authority cards functionality
-            function setupAuthorityCard(card, authority) {
-                card.addEventListener('click', () => {
-                    const isActive = card.classList.toggle('active');
-                    selectedAuthorities[authority] = isActive;
-                    updateTotalFee();
-                });
-            }
+            // Authority cards functionality
+            function setupAuthorityCard(card, authority) {
+                card.addEventListener('click', () => {
+                    const isActive = card.classList.toggle('active');
+                    selectedAuthorities[authority] = isActive;
+                    updateTotalFee();
+                });
+            }
 
-            setupAuthorityCard(freezeCard, 'freeze');
-            setupAuthorityCard(mintCard, 'mint');
-            setupAuthorityCard(updateCard, 'update');
+            setupAuthorityCard(freezeCard, 'freeze');
+            setupAuthorityCard(mintCard, 'mint');
+            setupAuthorityCard(updateCard, 'update');
 
-            // Update total fee calculation
-            function updateTotalFee() {
-                let total = 0.3; // Base fee
-                
-                // Authority fees
-                if (selectedAuthorities.freeze) total += 0.1;
-                if (selectedAuthorities.mint) total += 0.1;
-                if (selectedAuthorities.update) total += 0.1;
-                
-                // Optional features
-                if (optionalFeatures.creator) total += 0.1;
-                if (optionalFeatures.social) total += 0.1;
-                
-                totalFeeDisplay.textContent = total.toFixed(1) + ' SOL';
-            }
+            // Update total fee calculation
+            function updateTotalFee() {
+                let total = 0.3; // Base fee
+                
+                // Authority fees
+                if (selectedAuthorities.freeze) total += 0.1;
+                if (selectedAuthorities.mint) total += 0.1;
+                if (selectedAuthorities.update) total += 0.1;
+                
+                // Optional features
+                if (optionalFeatures.creator) total += 0.1;
+                if (optionalFeatures.social) total += 0.1;
+                
+                totalFeeDisplay.textContent = total.toFixed(1) + ' SOL';
+            }
 
-            const getProvider = () => window.phantom?.solana;
-            
-            // Wallet connection
-            connectWalletBtn.addEventListener('click', async () => {
-                const provider = getProvider();
-                if (provider) {
-                    try {
-                        const resp = await provider.connect();
-                        if (resp.publicKey) {
-                            const publicKey = resp.publicKey.toString();
-                            connectWalletBtn.innerHTML = `✅ Connected: ${publicKey.slice(0, 4)}...${publicKey.slice(-4)}`;
-                            connectWalletBtn.classList.add('connected');
-                            tokenRecipientInput.value = publicKey;
-                        }
-                    } catch (err) {
-                        console.error('Wallet connection error:', err);
-                        Swal.fire('Connection Failed', 'Please try connecting your wallet again.', 'error');
-                    }
-                } else { 
-                    window.open('https://phantom.app/', '_blank'); 
-                }
-            });
+            const getProvider = () => window.phantom?.solana;
+            
+            // Wallet connection
+            connectWalletBtn.addEventListener('click', async () => {
+                const provider = getProvider();
+                if (provider) {
+                    try {
+                        const resp = await provider.connect();
+                        if (resp.publicKey) {
+                            const publicKey = resp.publicKey.toString();
+                            connectWalletBtn.innerHTML = `✅ Connected: ${publicKey.slice(0, 4)}...${publicKey.slice(-4)}`;
+                            connectWalletBtn.classList.add('connected');
+                            tokenRecipientInput.value = publicKey;
+                        }
+                    } catch (err) {
+                        console.error('Wallet connection error:', err);
+                        Swal.fire('Connection Failed', 'Please try connecting your wallet again.', 'error');
+                    }
+                } else { 
+                    window.open('https://phantom.app/', '_blank'); 
+                }
+            });
 
-            // Logo upload
-            logoDropzone.addEventListener('click', () => logoUpload.click());
-            logoUpload.addEventListener('change', (e) => {
-                if (e.target.files.length) {
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        logoBase64 = event.target.result;
-                        logoPreview.src = logoBase64;
-                        logoPreview.style.display = 'block';
-                    };
-                    reader.readAsDataURL(e.target.files[0]);
-                }
-            });
+            // Logo upload
+            logoDropzone.addEventListener('click', () => logoUpload.click());
+            logoUpload.addEventListener('change', (e) => {
+                if (e.target.files.length) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        logoBase64 = event.target.result;
+                        logoPreview.src = logoBase64;
+                        logoPreview.style.display = 'block';
+                    };
+                    reader.readAsDataURL(e.target.files[0]);
+                }
+            });
 
-            // Form submission
-            document.getElementById('token-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                
-                const provider = getProvider();
-                if (!provider || !provider.publicKey) {
-                    return Swal.fire('Wallet Not Connected', 'Please connect your Phantom wallet first.', 'warning');
-                }
+            // Form submission
+            document.getElementById('token-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const provider = getProvider();
+                if (!provider || !provider.publicKey) {
+                    return Swal.fire('Wallet Not Connected', 'Please connect your Phantom wallet first.', 'warning');
+                }
 
-                // Generate mint keypair
-                mintKeypair = solanaWeb3.Keypair.generate();
+                // Generate mint keypair
+                mintKeypair = solanaWeb3.Keypair.generate();
 
-                // Prepare token data
-                const tokenData = {
-                    name: document.getElementById('tokenName').value,
-                    symbol: document.getElementById('tokenSymbol').value,
-                    description: document.getElementById('tokenDescription').value,
-                    imageBase64: logoBase64,
-                    supply: parseFloat(document.getElementById('tokenSupply').value),
-                    decimals: parseInt(document.getElementById('tokenDecimals').value, 10),
-                    recipient: tokenRecipientInput.value,
-                    mintAddress: mintKeypair.publicKey.toBase58(),
-                    options: {
-                        freeze_authority: !selectedAuthorities.freeze,
-                        revoke_mint_authority: selectedAuthorities.mint,
-                        revoke_update_authority: selectedAuthorities.update,
-                    },
-                    creator: optionalFeatures.creator ? {
-                        name: document.getElementById('creatorName').value,
-                        address: document.getElementById('creatorAddress').value
-                    } : null,
-                    social: optionalFeatures.social ? {
-                        website: document.getElementById('website').value,
-                        twitter: document.getElementById('twitter').value,
-                        telegram: document.getElementById('telegram').value,
-                        discord: document.getElementById('discord').value
-                    } : null
-                };
+                // Prepare token data
+                const tokenData = {
+                    name: document.getElementById('tokenName').value,
+                    symbol: document.getElementById('tokenSymbol').value,
+                    description: document.getElementById('tokenDescription').value,
+                    imageBase64: logoBase64,
+                    supply: parseFloat(document.getElementById('tokenSupply').value),
+                    decimals: parseInt(document.getElementById('tokenDecimals').value, 10),
+                    recipient: tokenRecipientInput.value,
+                    mintAddress: mintKeypair.publicKey.toBase58(),
+                    options: {
+                        freeze_authority: !selectedAuthorities.freeze,
+                        revoke_mint_authority: selectedAuthorities.mint,
+                        revoke_update_authority: selectedAuthorities.update,
+                    },
+                    creator: optionalFeatures.creator ? {
+                        name: document.getElementById('creatorName').value,
+                        address: document.getElementById('creatorAddress').value
+                    } : null,
+                    social: optionalFeatures.social ? {
+                        website: document.getElementById('website').value,
+                        twitter: document.getElementById('twitter').value,
+                        telegram: document.getElementById('telegram').value,
+                        discord: document.getElementById('discord').value
+                    } : null
+                };
 
-                // Show loading state
-                launchTokenBtn.innerHTML = '<div class="loading-spinner"></div>Creating Token...';
-                launchTokenBtn.disabled = true;
+                // Show loading state
+                launchTokenBtn.innerHTML = '<div class="loading-spinner"></div>Creating Token...';
+                launchTokenBtn.disabled = true;
 
-                Swal.fire({ 
-                    title: 'Preparing Transaction...', 
-                    text: 'Please wait while we prepare your token creation transaction.', 
-                    icon: 'info', 
-                    allowOutsideClick: false, 
-                    didOpen: () => Swal.showLoading() 
-                });
+                Swal.fire({ 
+                    title: 'Preparing Transaction...', 
+                    text: 'Please wait while we prepare your token creation transaction.', 
+                    icon: 'info', 
+                    allowOutsideClick: false, 
+                    didOpen: () => Swal.showLoading() 
+                });
 
-                try {
-                    // Call API
-                    console.log('Sending request to API...');
-                    const response = await fetch('/api/create-token', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(tokenData)
-                    });
+                try {
+                    // Call API
+                    console.log('Sending request to API...');
+                    const response = await fetch('/api/create-token', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(tokenData)
+                    });
 
-                    console.log('Response status:', response.status);
+                    console.log('Response status:', response.status);
 
-                    const responseText = await response.text();
-                    console.log('Raw response:', responseText);
+                    const responseText = await response.text();
+                    console.log('Raw response:', responseText);
 
-                    let result;
-                    try {
-                        result = JSON.parse(responseText);
-                    } catch (parseError) {
-                        console.error('JSON parse error:', parseError);
-                        throw new Error(`Server response is not valid JSON: ${responseText.substring(0, 100)}...`);
-                    }
+                    let result;
+                    try {
+                        result = JSON.parse(responseText);
+                    } catch (parseError) {
+                        console.error('JSON parse error:', parseError);
+                        throw new Error(`Server response is not valid JSON: ${responseText.substring(0, 100)}...`);
+                    }
 
-                    if (!result.success) {
-                        throw new Error(result.error || 'Unknown server error');
-                    }
+                    if (!result.success) {
+                        throw new Error(result.error || 'Unknown server error');
+                    }
 
-                    console.log('Transaction received, signing...');
-                    // Sign and send transaction
-                    await signAndSendTransaction(result.serializedTransaction);
+                    console.log('Transaction received, signing...');
+                    // Sign and send transaction
+                    await signAndSendTransaction(result.serializedTransaction);
 
-                } catch (error) {
-                    console.error('Error during token creation:', error);
-                    launchTokenBtn.innerHTML = 'Launch Token';
-                    launchTokenBtn.disabled = false;
-                    Swal.fire('Error', error.message || 'An error occurred while creating your token.', 'error');
-                }
-            });
+                } catch (error) {
+                    console.error('Error during token creation:', error);
+                    launchTokenBtn.innerHTML = 'Launch Token';
+                    launchTokenBtn.disabled = false;
+                    Swal.fire('Error', error.message || 'An error occurred while creating your token.', 'error');
+                }
+            });
 
-            async function signAndSendTransaction(serializedTransaction) {
-                const provider = getProvider();
-                try {
-                    const serializedBuffer = Uint8Array.from(atob(serializedTransaction), c => c.charCodeAt(0));
-                    const transaction = solanaWeb3.Transaction.from(serializedBuffer);
-                    transaction.partialSign(mintKeypair);
-                    
-                    console.log('Sending transaction...');
-                    const { signature } = await provider.signAndSendTransaction(transaction);
-                    console.log('Transaction sent with signature:', signature);
-                    
-                    // Reset button
-                    launchTokenBtn.innerHTML = 'Launch Token';
-                    launchTokenBtn.disabled = false;
-                    
-                    // Show immediate success with signature
-                    Swal.fire({ 
-                        title: 'Transaction Sent!', 
-                        html: `
-                            <p>Your transaction has been sent successfully!</p>
-                            <p><strong>Signature:</strong> ${signature}</p>
-                            <p>Confirmation may take a few minutes.</p>
-                            <br>
-                            <a href="https://solscan.io/tx/${signature}" target="_blank" style="display: inline-block; background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View on Solscan</a>
-                        `, 
-                        icon: 'success',
-                        confirmButtonText: 'Close',
-                        allowOutsideClick: true
-                    });
-                    
-                    // Try to confirm in background with shorter timeout  
-                    try {
-                        console.log('Attempting to confirm transaction...');
-                        const connection = new solanaWeb3.Connection(
-                            solanaWeb3.clusterApiUrl('mainnet-beta'), 
-                            'confirmed'
-                        );
-                        
-                        const confirmation = await Promise.race([
-                            connection.confirmTransaction(signature, 'confirmed'),
-                            new Promise((_, reject) => 
-                                setTimeout(() => reject(new Error('Confirmation timeout')), 15000)
-                            )
-                        ]);
-                        
-                        console.log('Transaction confirmed:', confirmation);
-                        
-                        // Update success message if confirmed
-                        Swal.fire({ 
-                            title: 'Token Created Successfully!', 
-                            html: `
-                                <p>✅ Your token has been created and confirmed!</p>
-                                <p><strong>Signature:</strong> ${signature}</p>
-                                <br>
-                                <a href="https://solscan.io/tx/${signature}" target="_blank" style="display: inline-block; background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View on Solscan</a>
-                            `, 
-                            icon: 'success'
-                        });
-                        
-                    } catch (confirmError) {
-                        console.log('Confirmation failed or timed out, but transaction was sent:', confirmError.message);
-                    }
-                    
-                } catch (err) {
-                    console.error('Signing error:', err);
-                    launchTokenBtn.innerHTML = 'Launch Token';
-                    launchTokenBtn.disabled = false;
-                    
-                    if (err.message.includes('User rejected')) {
-                        Swal.fire('Transaction Cancelled', 'You cancelled the transaction.', 'info');
-                    } else {
-                        Swal.fire('Error', err.message || 'Error during transaction signing.', 'error');
-                    }
-                }
-            }
-        });
-    </script>
+            async function signAndSendTransaction(serializedTransaction) {
+                const provider = getProvider();
+                try {
+                    const serializedBuffer = Uint8Array.from(atob(serializedTransaction), c => c.charCodeAt(0));
+                    const transaction = solanaWeb3.Transaction.from(serializedBuffer);
+                    transaction.partialSign(mintKeypair);
+                    
+                    console.log('Sending transaction...');
+                    const { signature } = await provider.signAndSendTransaction(transaction);
+                    console.log('Transaction sent with signature:', signature);
+                    
+                    // Reset button
+                    launchTokenBtn.innerHTML = 'Launch Token';
+                    launchTokenBtn.disabled = false;
+                    
+                    // Show immediate success with signature
+                    Swal.fire({ 
+                        title: 'Transaction Sent!', 
+                        html: `
+                            <p>Your transaction has been sent successfully!</p>
+                            <p><strong>Signature:</strong> ${signature}</p>
+                            <p>Confirmation may take a few minutes.</p>
+                            <br>
+                            <a href="https://solscan.io/tx/${signature}" target="_blank" style="display: inline-block; background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View on Solscan</a>
+                        `, 
+                        icon: 'success',
+                        confirmButtonText: 'Close',
+                        allowOutsideClick: true
+                    });
+                    
+                    // Try to confirm in background with shorter timeout  
+                    try {
+                        console.log('Attempting to confirm transaction...');
+                        const connection = new solanaWeb3.Connection(
+                            solanaWeb3.clusterApiUrl('mainnet-beta'), 
+                            'confirmed'
+                        );
+                        
+                        const confirmation = await Promise.race([
+                        -    connection.confirmTransaction(signature, 'confirmed'),
+                            new Promise((_, reject) => 
+                                setTimeout(() => reject(new Error('Confirmation timeout')), 15000)
+                            )
+                        ]);
+                        
+                        console.log('Transaction confirmed:', confirmation);
+                        
+                        // Update success message if confirmed
+                        Swal.fire({ 
+                            title: 'Token Created Successfully!', 
+                            html: `
+                                <p>✅ Your token has been created and confirmed!</p>
+                                <p><strong>Signature:</strong> ${signature}</p>
+                                <br>
+                                <a href="https://solscan.io/tx/${signature}" target="_blank" style="display: inline-block; background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View on Solscan</a>
+                            `, 
+                            icon: 'success'
+                        });
+                        
+                    } catch (confirmError) {
+                        console.log('Confirmation failed or timed out, but transaction was sent:', confirmError.message);
+                    }
+                    
+                } catch (err) {
+                    console.error('Signing error:', err);
+                    launchTokenBtn.innerHTML = 'Launch Token';
+                    launchTokenBtn.disabled = false;
+                    
+                    if (err.message.includes('User rejected')) {
+                        Swal.fire('Transaction Cancelled', 'You cancelled the transaction.', 'info');
+                    } else {
+                        Swal.fire('Error', err.message || 'Error during transaction signing.', 'error');
+                    }
+                }
+            }
+        });
+    </script>
 </body>
 </html>
