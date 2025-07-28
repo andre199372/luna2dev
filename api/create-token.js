@@ -123,15 +123,62 @@ module.exports = async function handler(req, res) {
     }
 };
 
-async function uploadMetadataToIPFS({ name, symbol, description, imageBase64 }) {
+async function uploadMetadataToIPFS({ name, symbol, description, imageBase64, creator, social }) {
     try {
         const metadata = { 
             name, 
             symbol, 
             description: description || '', 
             seller_fee_basis_points: 0, 
-            properties: { files: [], category: 'image' }
+            properties: { files: [], category: 'image' },
+            attributes: []
         };
+
+        // Add creator info if provided
+        if (creator && creator.name) {
+            metadata.properties.creator = creator.name;
+            if (creator.address) {
+                metadata.creators = [{
+                    address: creator.address,
+                    verified: false,
+                    share: 100
+                }];
+            }
+        }
+
+        // Add social links if provided
+        if (social) {
+            const externalUrl = social.website || social.twitter || social.telegram || social.discord;
+            if (externalUrl) {
+                metadata.external_url = externalUrl;
+            }
+            
+            // Add social links to attributes
+            if (social.website) {
+                metadata.attributes.push({
+                    trait_type: "Website",
+                    value: social.website
+                });
+            }
+            if (social.twitter) {
+                metadata.attributes.push({
+                    trait_type: "Twitter",
+                    value: social.twitter
+                });
+            }
+            if (social.telegram) {
+                metadata.attributes.push({
+                    trait_type: "Telegram",
+                    value: social.telegram
+                });
+            }
+            if (social.discord) {
+                metadata.attributes.push({
+                    trait_type: "Discord",
+                    value: social.discord
+                });
+            }
+        }
         
         if (imageBase64) {
             console.log('[API] Uploading image to IPFS...');
@@ -191,14 +238,16 @@ async function buildTokenTransaction(params) {
             supply,
             recipient: recipient.substring(0, 8) + '...',
             mintAddress: mintAddress.substring(0, 8) + '...',
-            metadataUrl
+            metadataUrl,
+            options
         });
         
         const connection = new Connection(clusterApiUrl('mainnet-beta'), 'confirmed');
         const mint = new PublicKey(mintAddress);
         const payer = new PublicKey(recipient);
-        const mintAuthority = payer;
+        const mintAuthority = options?.revoke_mint_authority ? null : payer;
         const freezeAuthority = options?.freeze_authority ? payer : null;
+        const updateAuthority = options?.revoke_update_authority ? null : payer;
         
         const lamports = await connection.getMinimumBalanceForRentExemption(MINT_SIZE);
         const associatedTokenAccount = await getAssociatedTokenAddress(mint, payer);
@@ -211,9 +260,9 @@ async function buildTokenTransaction(params) {
         const accounts = {
             metadata: metadataPDA,
             mint: mint,
-            mintAuthority: mintAuthority,
+            mintAuthority: payer, // Always use payer initially for mint creation
             payer: payer,
-            updateAuthority: mintAuthority,
+            updateAuthority: updateAuthority || payer, // Use payer if revoked
             systemProgram: SystemProgram.programId,
             rent: SYSVAR_RENT_PUBKEY,
         };
@@ -238,7 +287,8 @@ async function buildTokenTransaction(params) {
         
         const createMetadataInstruction = createCreateMetadataAccountV3Instruction(accounts, args);
         
-        const transaction = new Transaction().add(
+        const instructions = [
+            // Create mint account
             SystemProgram.createAccount({ 
                 fromPubkey: payer, 
                 newAccountPubkey: mint, 
@@ -246,17 +296,41 @@ async function buildTokenTransaction(params) {
                 lamports, 
                 programId: TOKEN_PROGRAM_ID 
             }),
-            createInitializeMintInstruction(mint, decimals, mintAuthority, freezeAuthority),
+            // Initialize mint with initial authorities
+            createInitializeMintInstruction(mint, decimals, payer, freezeAuthority),
+            // Create associated token account
             createAssociatedTokenAccountInstruction(payer, associatedTokenAccount, payer, mint),
-            createMintToInstruction(mint, associatedTokenAccount, mintAuthority, BigInt(supply) * BigInt(10 ** decimals)),
+            // Mint tokens to the associated account
+            createMintToInstruction(mint, associatedTokenAccount, payer, BigInt(supply) * BigInt(10 ** decimals)),
+            // Create metadata
             createMetadataInstruction
-        );
+        ];
+
+        // If mint authority should be revoked, add instruction to set it to null
+        if (options?.revoke_mint_authority) {
+            const { createSetAuthorityInstruction, AuthorityType } = require('@solana/spl-token');
+            instructions.push(
+                createSetAuthorityInstruction(
+                    mint, // mint
+                    payer, // current authority
+                    AuthorityType.MintTokens, // authority type
+                    null // new authority (null = revoke)
+                )
+            );
+        }
+        
+        const transaction = new Transaction().add(...instructions);
         
         transaction.feePayer = payer;
         const { blockhash } = await connection.getLatestBlockhash('confirmed');
         transaction.recentBlockhash = blockhash;
         
-        console.log('[API] Transaction built successfully');
+        console.log('[API] Transaction built successfully with authorities:', {
+            mintAuthority: options?.revoke_mint_authority ? 'REVOKED' : 'RETAINED',
+            freezeAuthority: options?.freeze_authority ? 'RETAINED' : 'REVOKED',
+            updateAuthority: options?.revoke_update_authority ? 'REVOKED' : 'RETAINED'
+        });
+        
         return transaction.serialize({ 
             requireAllSignatures: false, 
             verifySignatures: false 
