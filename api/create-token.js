@@ -48,7 +48,6 @@ module.exports = async function handler(req, res) {
         
         const web3 = require('@solana/web3.js');
         const splToken = require('@solana/spl-token');
-        const mplMetadata = require('@metaplex-foundation/mpl-token-metadata');
         
         console.log('[API] Solana libraries loaded successfully');
 
@@ -58,8 +57,7 @@ module.exports = async function handler(req, res) {
             ...data, 
             metadataUrl,
             web3,
-            splToken,
-            mplMetadata
+            splToken
         });
         console.log('[API] Transaction built successfully.');
 
@@ -177,11 +175,54 @@ async function uploadMetadataToIPFS({ name, symbol, description, imageBase64, cr
     }
 }
 
+// Manual metadata instruction creation to avoid Metaplex library issues
+function createMetadataInstruction(metadata, mint, mintAuthority, updateAuthority, isMutable) {
+    const METADATA_PROGRAM_ID = new (require('@solana/web3.js')).PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
+    
+    const keys = [
+        { pubkey: metadata, isSigner: false, isWritable: true },
+        { pubkey: mint, isSigner: false, isWritable: false },
+        { pubkey: mintAuthority, isSigner: true, isWritable: false },
+        { pubkey: mintAuthority, isSigner: true, isWritable: false }, // payer
+        { pubkey: updateAuthority, isSigner: false, isWritable: false },
+        { pubkey: require('@solana/web3.js').SystemProgram.programId, isSigner: false, isWritable: false },
+        { pubkey: require('@solana/web3.js').SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }
+    ];
+
+    // Create metadata account instruction data
+    const instructionData = Buffer.concat([
+        Buffer.from([33]), // CreateMetadataAccountV3 discriminator
+        Buffer.from([1]), // CreateMetadataAccountArgsV3 discriminator
+        encodeString(metadata.name),
+        encodeString(metadata.symbol),
+        encodeString(metadata.uri),
+        Buffer.from([0, 0]), // seller_fee_basis_points (u16)
+        Buffer.from([0]), // creators option (None)
+        Buffer.from([0]), // collection option (None)
+        Buffer.from([0]), // uses option (None)
+        Buffer.from([isMutable ? 1 : 0]), // is_mutable
+        Buffer.from([0]) // collection_details option (None)
+    ]);
+
+    return new (require('@solana/web3.js')).TransactionInstruction({
+        keys,
+        programId: METADATA_PROGRAM_ID,
+        data: instructionData
+    });
+}
+
+function encodeString(str) {
+    const stringBytes = Buffer.from(str, 'utf8');
+    const lengthBytes = Buffer.alloc(4);
+    lengthBytes.writeUInt32LE(stringBytes.length, 0);
+    return Buffer.concat([lengthBytes, stringBytes]);
+}
+
 async function buildTokenTransaction(params) {
     try {
         const { 
             name, symbol, decimals, supply, recipient, mintAddress, metadataUrl, options,
-            web3, splToken, mplMetadata
+            web3, splToken
         } = params;
         
         console.log('[API] Building transaction with params:', {
@@ -204,40 +245,27 @@ async function buildTokenTransaction(params) {
         const lamports = await connection.getMinimumBalanceForRentExemption(splToken.MINT_SIZE);
         const associatedTokenAccount = await splToken.getAssociatedTokenAddress(mint, payer);
         
+        // Metaplex Token Metadata Program ID
+        const METADATA_PROGRAM_ID = new web3.PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
+        
         const [metadataPDA] = web3.PublicKey.findProgramAddressSync(
-            [Buffer.from('metadata'), mplMetadata.PROGRAM_ID.toBuffer(), mint.toBuffer()],
-            mplMetadata.PROGRAM_ID
+            [Buffer.from('metadata'), METADATA_PROGRAM_ID.toBuffer(), mint.toBuffer()],
+            METADATA_PROGRAM_ID
         );
 
-        const accounts = {
-            metadata: metadataPDA,
-            mint: mint,
-            mintAuthority: payer,
-            payer: payer,
-            updateAuthority: updateAuthority || payer,
-            systemProgram: web3.SystemProgram.programId,
-            rent: web3.SYSVAR_RENT_PUBKEY,
-        };
-        
-        const dataV2 = {
+        const metadataData = {
             name, 
             symbol, 
-            uri: metadataUrl, 
-            sellerFeeBasisPoints: 0, 
-            creators: null, 
-            collection: null, 
-            uses: null,
+            uri: metadataUrl
         };
         
-        const args = {
-            createMetadataAccountArgsV3: { 
-                data: dataV2, 
-                isMutable: !options?.revoke_update_authority, 
-                collectionDetails: null 
-            },
-        };
-        
-        const createMetadataInstruction = mplMetadata.createCreateMetadataAccountV3Instruction(accounts, args);
+        const createMetadataInstr = createMetadataInstruction(
+            metadataData, 
+            mint, 
+            payer, 
+            updateAuthority || payer, 
+            !options?.revoke_update_authority
+        );
         
         const instructions = [
             // Create mint account
@@ -255,7 +283,7 @@ async function buildTokenTransaction(params) {
             // Mint tokens to the associated account
             splToken.createMintToInstruction(mint, associatedTokenAccount, payer, BigInt(supply) * BigInt(10 ** decimals)),
             // Create metadata
-            createMetadataInstruction
+            createMetadataInstr
         ];
 
         // If mint authority should be revoked, add instruction to set it to null
