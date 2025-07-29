@@ -1,23 +1,22 @@
 <!DOCTYPE html>
-<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luna Launch - Create Solana Token</title>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    <title>Luna Launch - Solana Token Creator | Create SPL Tokens in Seconds</title>
+    <meta name="description" content="Create and deploy your Solana token in seconds. No coding required. Trusted by thousands of creators worldwide.">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         /*
         ========================================
-        LUNA LAUNCH - IMPROVED STYLESHEET v3.0
+        LUNA LAUNCH - LANDING PAGE v1.0
         ========================================
         */
 
         /* ====================
            1. IMPORTS & VARIABLES
            ==================== */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
         :root {
             /* Color Palette */
@@ -61,6 +60,7 @@
             --space-lg: 2rem;
             --space-xl: 3rem;
             --space-2xl: 4rem;
+            --space-3xl: 6rem;
             
             /* Border Radius */
             --radius-sm: 6px;
@@ -107,1131 +107,1089 @@
         }
 
         /* ====================
-           3. LAYOUT COMPONENTS
+           3. NAVIGATION
            ==================== */
-        header {
-            text-align: center;
-            padding: var(--space-2xl) var(--space-lg);
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-overlay);
+            backdrop-filter: blur(10px);
             border-bottom: 1px solid var(--border-secondary);
-            background: var(--bg-secondary);
+            z-index: 1000;
+            padding: var(--space-sm) 0;
         }
 
-        .logo {
-            font-size: clamp(2rem, 5vw, 3rem);
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 var(--space-lg);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-logo {
+            font-size: 1.75rem;
             font-weight: 800;
-            background: linear-gradient(135deg, var(--primary-purple), var(--primary-blue), var(--accent-green));
-            background-size: 200% 200%;
+            background: linear-gradient(135deg, var(--primary-purple), var(--primary-blue));
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
-            margin-bottom: var(--space-xs);
-            animation: gradientShift 4s ease-in-out infinite;
-            letter-spacing: -0.02em;
+            text-decoration: none;
         }
 
-        @keyframes gradientShift {
-            0%, 100% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-        }
-
-        .tagline {
-            font-size: 1.125rem;
-            color: var(--text-secondary);
-            font-weight: 400;
-            opacity: 0.9;
-        }
-
-        main {
+        .nav-links {
             display: flex;
-            justify-content: center;
-            padding: var(--space-2xl) var(--space-lg);
-            min-height: calc(100vh - 200px);
+            list-style: none;
+            gap: var(--space-xl);
+            align-items: center;
         }
 
-        .container {
-            max-width: 720px;
-            width: 100%;
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all var(--transition-medium);
             position: relative;
         }
 
+        .nav-links a:hover {
+            color: var(--text-primary);
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary-purple), var(--primary-blue));
+            transition: width var(--transition-medium);
+        }
+
+        .nav-links a:hover::after {
+            width: 100%;
+        }
+
+        .nav-cta {
+            background: linear-gradient(135deg, var(--primary-purple), var(--primary-blue));
+            color: white;
+            padding: var(--space-sm) var(--space-lg);
+            border-radius: var(--radius-full);
+            text-decoration: none;
+            font-weight: 600;
+            transition: all var(--transition-medium);
+        }
+
+        .nav-cta:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-button);
+        }
+
+        /* Mobile Menu */
+        .mobile-menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
         /* ====================
-           4. FORM COMPONENTS
+           4. HERO SECTION
            ==================== */
-        .form {
-            background: var(--bg-card);
-            border: 1px solid var(--border-primary);
-            border-radius: var(--radius-xl);
-            padding: var(--space-xl);
-            box-shadow: var(--shadow-card), var(--shadow-glow);
+        .hero {
+            padding: calc(80px + var(--space-3xl)) var(--space-lg) var(--space-3xl);
+            text-align: center;
             position: relative;
             overflow: hidden;
         }
 
-        .form::before {
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 1000px;
+            height: 1000px;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.1), transparent);
+            transform: translate(-50%, -50%);
+            animation: pulse 8s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
+            50% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.8; }
+        }
+
+        .hero-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            padding: var(--space-xs) var(--space-md);
+            border-radius: var(--radius-full);
+            color: var(--primary-purple);
+            font-weight: 500;
+            font-size: 0.875rem;
+            margin-bottom: var(--space-lg);
+            gap: var(--space-xs);
+        }
+
+        .hero-title {
+            font-size: clamp(2.5rem, 8vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: var(--space-lg);
+            background: linear-gradient(135deg, var(--text-primary), var(--primary-purple), var(--primary-blue));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: -0.02em;
+        }
+
+        .hero-subtitle {
+            font-size: clamp(1.125rem, 3vw, 1.5rem);
+            color: var(--text-secondary);
+            margin-bottom: var(--space-2xl);
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.5;
+        }
+
+        .hero-cta {
+            display: flex;
+            gap: var(--space-md);
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: var(--space-2xl);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-purple), var(--primary-blue));
+            color: white;
+            padding: var(--space-md) var(--space-xl);
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 1.125rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all var(--transition-medium);
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-xs);
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-button);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-secondary);
+            padding: var(--space-md) var(--space-xl);
+            border: 2px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            font-size: 1.125rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all var(--transition-medium);
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-xs);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--primary-purple);
+            color: var(--text-primary);
+        }
+
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: var(--space-2xl);
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary-purple), var(--accent-green));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            display: block;
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* ====================
+           5. FEATURES SECTION
+           ==================== */
+        .features {
+            padding: var(--space-3xl) var(--space-lg);
+            background: var(--bg-secondary);
+        }
+
+        .features-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: var(--space-3xl);
+        }
+
+        .section-title {
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 800;
+            margin-bottom: var(--space-md);
+            background: linear-gradient(135deg, var(--text-primary), var(--primary-purple));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .section-subtitle {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: var(--space-xl);
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-secondary);
+            border-radius: var(--radius-lg);
+            padding: var(--space-xl);
+            text-align: center;
+            transition: all var(--transition-medium);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.05), transparent);
+            transition: all var(--transition-slow);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-8px);
+            border-color: var(--primary-purple);
+            box-shadow: var(--shadow-card), 0 0 40px rgba(139, 92, 246, 0.2);
+        }
+
+        .feature-card:hover::before {
+            left: 100%;
+        }
+
+        .feature-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--primary-purple), var(--primary-blue));
+            border-radius: var(--radius-full);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto var(--space-lg);
+            font-size: 2rem;
+            color: white;
+        }
+
+        .feature-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: var(--space-md);
+            color: var(--text-primary);
+        }
+
+        .feature-description {
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* ====================
+           6. HOW IT WORKS
+           ==================== */
+        .how-it-works {
+            padding: var(--space-3xl) var(--space-lg);
+        }
+
+        .steps-container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: var(--space-xl);
+            margin-top: var(--space-2xl);
+        }
+
+        .step {
+            text-align: center;
+            position: relative;
+        }
+
+        .step-number {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--primary-purple), var(--primary-blue));
+            border-radius: var(--radius-full);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto var(--space-lg);
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: white;
+        }
+
+        .step-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: var(--space-sm);
+            color: var(--text-primary);
+        }
+
+        .step-description {
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* ====================
+           7. PRICING SECTION
+           ==================== */
+        .pricing {
+            padding: var(--space-3xl) var(--space-lg);
+            background: var(--bg-secondary);
+        }
+
+        .pricing-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .pricing-card {
+            background: var(--bg-card);
+            border: 2px solid var(--primary-purple);
+            border-radius: var(--radius-xl);
+            padding: var(--space-2xl);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pricing-card::before {
             content: '';
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, var(--primary-purple), transparent);
-            opacity: 0.5;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-purple), var(--primary-blue), var(--accent-green));
         }
 
-        .form-group {
-            margin-bottom: var(--space-md);
-            position: relative;
-        }
-
-        .form-group:last-child {
-            margin-bottom: 0;
-        }
-
-        label {
-            display: block;
-            font-weight: 500;
-            margin-bottom: var(--space-xs);
-            color: var(--text-secondary);
+        .pricing-badge {
+            background: linear-gradient(135deg, var(--primary-purple), var(--primary-blue));
+            color: white;
+            padding: var(--space-xs) var(--space-md);
+            border-radius: var(--radius-full);
             font-size: 0.875rem;
-            letter-spacing: 0.02em;
-            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: var(--space-lg);
+            display: inline-block;
         }
 
-        input, textarea {
-            width: 100%;
-            background: var(--bg-input);
-            border: 1px solid var(--border-secondary);
-            border-radius: var(--radius-sm);
-            color: var(--text-primary);
-            padding: var(--space-sm) var(--space-md);
-            font-size: 1rem;
-            font-family: inherit;
-            font-weight: 400;
-            transition: all var(--transition-medium);
-            position: relative;
+        .pricing-title {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: var(--space-sm);
         }
 
-        input:focus, textarea:focus {
-            outline: none;
-            border-color: var(--primary-purple);
-            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
-            background: var(--bg-tertiary);
-            transform: translateY(-1px);
+        .pricing-price {
+            font-size: 3rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary-purple), var(--accent-green));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: var(--space-md);
         }
 
-        input::placeholder, textarea::placeholder {
-            color: var(--text-muted);
-            font-weight: 300;
+        .pricing-features {
+            list-style: none;
+            margin: var(--space-xl) 0;
+            text-align: left;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
         }
 
-        textarea {
-            resize: vertical;
-            min-height: 100px;
-            line-height: 1.5;
+        .pricing-features li {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            margin-bottom: var(--space-sm);
+            color: var(--text-secondary);
+        }
+
+        .pricing-features li::before {
+            content: '✓';
+            color: var(--accent-green);
+            font-weight: 800;
+            font-size: 1.2rem;
         }
 
         /* ====================
-           5. UPLOAD COMPONENT
+           8. CTA SECTION
            ==================== */
-        .upload-area {
-            border: 2px dashed var(--border-secondary);
-            border-radius: var(--radius-md);
-            padding: var(--space-xl);
+        .cta-section {
+            padding: var(--space-3xl) var(--space-lg);
+            background: linear-gradient(135deg, var(--primary-purple), var(--primary-blue));
             text-align: center;
-            cursor: pointer;
-            transition: all var(--transition-medium);
-            background: var(--bg-input);
             position: relative;
             overflow: hidden;
         }
 
-        .upload-area::before {
+        .cta-section::before {
             content: '';
             position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            background: radial-gradient(circle, rgba(139, 92, 246, 0.1), transparent);
-            border-radius: 50%;
-            transition: all var(--transition-medium);
-            transform: translate(-50%, -50%);
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
         }
 
-        .upload-area:hover {
-            border-color: var(--primary-purple);
-            background: var(--bg-tertiary);
-            transform: translateY(-2px);
-        }
-
-        .upload-area:hover::before {
-            width: 200px;
-            height: 200px;
-        }
-
-        .upload-area span {
-            color: var(--text-secondary);
-            font-weight: 500;
+        .cta-container {
+            max-width: 800px;
+            margin: 0 auto;
             position: relative;
             z-index: 1;
         }
 
-        #logo-preview {
-            max-width: 80px;
-            max-height: 80px;
-            margin-top: var(--space-md);
-            border-radius: var(--radius-full);
-            display: none;
-            border: 3px solid var(--border-primary);
-            box-shadow: var(--shadow-card);
-            transition: all var(--transition-medium);
+        .cta-title {
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 900;
+            margin-bottom: var(--space-md);
+            color: white;
         }
 
-        #logo-preview:hover {
-            transform: scale(1.05);
+        .cta-subtitle {
+            font-size: 1.25rem;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: var(--space-xl);
         }
 
-        /* ====================
-           6. TOGGLE COMPONENTS
-           ==================== */
-        .toggle-group {
-            margin: var(--space-xl) 0;
-            border: 1px solid var(--border-secondary);
-            border-radius: var(--radius-md);
-            background: var(--bg-secondary);
-            overflow: hidden;
-        }
-
-        .toggle-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: var(--space-lg);
-            border-bottom: 1px solid var(--border-secondary);
-            transition: all var(--transition-medium);
-            position: relative;
-        }
-
-        .toggle-item:last-child {
-            border-bottom: none;
-        }
-
-        .toggle-item:hover {
-            background: var(--bg-tertiary);
-        }
-
-        .toggle-content {
-            flex: 1;
-            margin-right: var(--space-md);
-        }
-
-        .toggle-title {
-            font-size: 1rem;
-            font-weight: 600;
-            margin-bottom: var(--space-xs);
-            display: flex;
-            align-items: center;
-            gap: var(--space-xs);
-        }
-
-        .toggle-price {
-            color: var(--accent-orange);
-            font-weight: 600;
-            font-size: 0.875rem;
-            background: rgba(245, 158, 11, 0.1);
-            padding: 0.25rem 0.5rem;
-            border-radius: var(--radius-sm);
-            border: 1px solid rgba(245, 158, 11, 0.2);
-        }
-
-        .toggle-description {
-            font-size: 0.875rem;
-            color: var(--text-muted);
-            line-height: 1.5;
-        }
-
-        .toggle-switch {
-            position: relative;
-            width: 52px;
-            height: 28px;
-            background: var(--bg-input);
-            border-radius: var(--radius-full);
-            cursor: pointer;
-            transition: all var(--transition-medium);
-            flex-shrink: 0;
-            border: 2px solid var(--border-secondary);
-        }
-
-        .toggle-switch:hover {
-            transform: scale(1.05);
-        }
-
-        .toggle-switch.active {
-            background: var(--accent-green);
-            border-color: var(--accent-green);
-            box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
-        }
-
-        .toggle-slider {
-            position: absolute;
-            top: 2px;
-            left: 2px;
-            width: 20px;
-            height: 20px;
+        .btn-cta {
             background: white;
-            border-radius: var(--radius-full);
-            transition: all var(--transition-spring);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            color: var(--primary-purple);
+            padding: var(--space-md) var(--space-2xl);
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 1.25rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all var(--transition-medium);
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-sm);
         }
 
-        .toggle-switch.active .toggle-slider {
-            transform: translateX(24px);
-        }
-
-        .expandable-section {
-            overflow: hidden;
-            transition: all var(--transition-slow);
-            max-height: 0;
-            opacity: 0;
-            padding: 0;
-        }
-
-        .expandable-section.active {
-            max-height: 800px;
-            opacity: 1;
-            padding: var(--space-lg);
-            border-top: 1px solid var(--border-secondary);
-            margin-top: var(--space-md);
+        .btn-cta:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
         }
 
         /* ====================
-           7. AUTHORITY CARDS
+           9. FOOTER
            ==================== */
-        .authority-section {
-            margin: var(--space-2xl) 0;
+        .footer {
+            background: var(--bg-primary);
+            padding: var(--space-2xl) var(--space-lg) var(--space-lg);
+            border-top: 1px solid var(--border-secondary);
         }
 
-        .authority-title {
-            font-size: 1.5rem;
+        .footer-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: var(--space-xl);
+            margin-bottom: var(--space-xl);
+        }
+
+        .footer-section h3 {
+            font-size: 1.25rem;
             font-weight: 700;
-            text-align: center;
-            margin-bottom: var(--space-xs);
-            background: linear-gradient(135deg, var(--text-primary), var(--text-accent));
+            margin-bottom: var(--space-md);
+            background: linear-gradient(135deg, var(--primary-purple), var(--primary-blue));
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
         }
 
-        .authority-subtitle {
-            font-size: 1rem;
+        .footer-links {
+            list-style: none;
+        }
+
+        .footer-links li {
+            margin-bottom: var(--space-xs);
+        }
+
+        .footer-links a {
             color: var(--text-muted);
-            text-align: center;
-            margin-bottom: var(--space-xl);
-            line-height: 1.6;
-        }
-
-        .authority-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: var(--space-lg);
-        }
-
-        .authority-card {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-secondary);
-            border-radius: var(--radius-md);
-            padding: var(--space-lg);
-            cursor: pointer;
-            transition: all var(--transition-medium);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .authority-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.1), transparent);
-            transition: all var(--transition-slow);
-        }
-
-        .authority-card:hover {
-            transform: translateY(-4px);
-            border-color: var(--primary-purple);
-            box-shadow: var(--shadow-card), 0 0 30px rgba(139, 92, 246, 0.2);
-        }
-
-        .authority-card:hover::before {
-            left: 100%;
-        }
-
-        .authority-card.active {
-            border-color: var(--accent-green);
-            background: rgba(16, 185, 129, 0.05);
-            box-shadow: var(--shadow-card), 0 0 30px rgba(16, 185, 129, 0.2);
-        }
-
-        .authority-card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: var(--space-md);
-            gap: var(--space-sm);
-        }
-
-        .authority-card-title {
-            font-weight: 600;
-            font-size: 1.125rem;
-        }
-
-        .authority-card-checkbox {
-            width: 24px;
-            height: 24px;
-            border: 2px solid var(--border-primary);
-            border-radius: var(--radius-sm);
-            background: var(--bg-primary);
-            transition: all var(--transition-medium);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            position: relative;
-        }
-
-        .authority-card.active .authority-card-checkbox {
-            border-color: var(--accent-green);
-            background: var(--accent-green);
-            transform: scale(1.1);
-        }
-
-        .authority-card-checkbox::after {
-            content: '';
-            width: 6px;
-            height: 10px;
-            border: solid white;
-            border-width: 0 2px 2px 0;
-            transform: rotate(45deg) scale(0);
-            transition: all var(--transition-spring);
-        }
-
-        .authority-card.active .authority-card-checkbox::after {
-            transform: rotate(45deg) scale(1);
-        }
-
-        .authority-card-description {
-            font-size: 0.875rem;
-            color: var(--text-muted);
-            line-height: 1.6;
-            margin-bottom: var(--space-md);
-        }
-
-        .authority-card-price {
-            color: var(--accent-orange);
-            font-weight: 600;
-            font-size: 0.875rem;
-            background: rgba(245, 158, 11, 0.1);
-            padding: 0.375rem 0.75rem;
-            border-radius: var(--radius-sm);
-            border: 1px solid rgba(245, 158, 11, 0.2);
-            display: inline-block;
-        }
-
-        /* ====================
-           8. BUTTON COMPONENTS
-           ==================== */
-        .btn {
-            display: flex;
-            width: 100%;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, var(--primary-purple), var(--primary-blue));
-            color: var(--text-primary);
-            border: none;
-            border-radius: var(--radius-md);
-            padding: var(--space-md) var(--space-lg);
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all var(--transition-medium);
-            position: relative;
-            overflow: hidden;
             text-decoration: none;
-            letter-spacing: 0.01em;
+            transition: color var(--transition-medium);
         }
 
-        .btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-            transition: all var(--transition-slow);
-        }
-
-        .btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-button);
-        }
-
-        .btn:hover:not(:disabled)::before {
-            left: 100%;
-        }
-
-        .btn:active:not(:disabled) {
-            transform: translateY(0);
-        }
-
-        .btn:disabled {
-            background: var(--bg-input);
-            color: var(--text-muted);
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-
-        .btn-connect {
-            background: transparent;
-            border: 2px solid var(--border-primary);
-            margin-bottom: var(--space-md);
-            color: var(--text-secondary);
-        }
-
-        .btn-connect:hover:not(:disabled) {
-            background: var(--bg-tertiary);
-            border-color: var(--primary-blue);
+        .footer-links a:hover {
             color: var(--text-primary);
-            box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
         }
 
-        .btn-connect.connected {
-            background: rgba(16, 185, 129, 0.1);
-            border-color: var(--accent-green);
-            color: var(--accent-green);
-            cursor: default;
-        }
-
-        .btn-connect.connected:hover {
-            transform: none;
-            box-shadow: none;
-        }
-
-        /* ====================
-           9. UTILITY COMPONENTS
-           ==================== */
-        .fee-display {
+        .footer-bottom {
             text-align: center;
-            margin-top: var(--space-xl);
             padding-top: var(--space-lg);
             border-top: 1px solid var(--border-secondary);
-        }
-
-        .fee-text {
-            color: var(--text-secondary);
-            font-size: 1rem;
-        }
-
-        .fee-amount {
-            font-weight: 700;
-            color: var(--text-primary);
-            font-size: 1.125rem;
-        }
-
-        .fee-crossed {
-            text-decoration: line-through;
             color: var(--text-muted);
-            margin-right: var(--space-xs);
-            opacity: 0.7;
         }
 
-        .loading-spinner {
-            width: 18px;
-            height: 18px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: var(--radius-full);
-            border-top-color: white;
-            animation: spin 1s linear infinite;
-            margin-right: var(--space-sm);
+        .social-links {
+            display: flex;
+            gap: var(--space-md);
+            justify-content: center;
+            margin-top: var(--space-md);
         }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        .social-links a {
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            transition: all var(--transition-medium);
         }
 
-        .hidden-input, .hidden {
-            display: none;
+        .social-links a:hover {
+            color: var(--primary-purple);
+            transform: translateY(-2px);
         }
 
         /* ====================
-           10. FOOTER
-           ==================== */
-        footer {
-            text-align: center;
-            padding: var(--space-2xl);
-            border-top: 1px solid var(--border-secondary);
-            margin-top: var(--space-2xl);
-            background: var(--bg-secondary);
-        }
-
-        footer p {
-            color: var(--text-muted);
-            font-size: 0.875rem;
-        }
-
-        /* ====================
-           11. RESPONSIVE DESIGN
+           10. RESPONSIVE DESIGN
            ==================== */
         @media (max-width: 768px) {
-            .form {
-                padding: var(--space-lg);
-                margin: var(--space-sm);
+            .nav-links {
+                display: none;
             }
             
-            .authority-cards {
-                grid-template-columns: 1fr;
+            .mobile-menu-toggle {
+                display: block;
             }
             
-            .toggle-item {
+            .hero-cta {
                 flex-direction: column;
-                align-items: flex-start;
+                align-items: stretch;
+            }
+            
+            .hero-stats {
                 gap: var(--space-md);
             }
             
-            .toggle-switch {
-                align-self: flex-end;
+            .features-grid {
+                grid-template-columns: 1fr;
             }
             
-            main {
-                padding: var(--space-lg) var(--space-sm);
-            }
-        }
-
-        @media (max-width: 480px) {
-            .logo {
-                font-size: 2rem;
-            }
-            
-            .tagline {
-                font-size: 1rem;
-            }
-            
-            .authority-card {
-                padding: var(--space-md);
+            .steps-grid {
+                grid-template-columns: 1fr;
             }
         }
 
         /* ====================
-           12. CUSTOM SCROLLBAR
+           11. ANIMATIONS
            ==================== */
-        ::-webkit-scrollbar {
-            width: 8px;
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
-        ::-webkit-scrollbar-track {
-            background: var(--bg-secondary);
+        .animate-on-scroll {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.6s ease-out;
         }
 
-        ::-webkit-scrollbar-thumb {
-            background: var(--primary-purple);
-            border-radius: var(--radius-full);
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--primary-blue);
+        .animate-on-scroll.visible {
+            opacity: 1;
+            transform: translateY(0);
         }
 
         /* ====================
-           13. SWEETALERT2 OVERRIDES
+           12. UTILITIES
            ==================== */
-        .swal2-popup {
-            background: var(--bg-card) !important;
-            color: var(--text-primary) !important;
-            border-radius: var(--radius-lg) !important;
-            border: 1px solid var(--border-primary) !important;
-            box-shadow: var(--shadow-card) !important;
+        .text-gradient {
+            background: linear-gradient(135deg, var(--primary-purple), var(--primary-blue));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
         }
 
-        .swal2-title {
-            color: var(--text-primary) !important;
-            font-weight: 700 !important;
-        }
-
-        .swal2-html-container {
-            color: var(--text-secondary) !important;
-        }
-
-        .swal2-styled.swal2-confirm {
-            background: linear-gradient(135deg, var(--primary-purple), var(--primary-blue)) !important;
-            border-radius: var(--radius-sm) !important;
-            font-weight: 600 !important;
-        }
-
-        .swal2-styled.swal2-cancel {
-            background: var(--bg-input) !important;
-            color: var(--text-secondary) !important;
-            border: 1px solid var(--border-secondary) !important;
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 var(--space-lg);
         }
     </style>
 </head>
 <body>
-    <header>
-        <div class="logo">Luna Launch</div>
-        <div class="tagline">Create Your Solana Token in Seconds</div>
-    </header>
-    
-    <main>
-        <div class="container">
-            <form class="form" id="token-form">
-                <div class="form-group">
-                    <label for="tokenName">Token Name</label>
-                    <input required type="text" id="tokenName" placeholder="e.g., My Amazing Token">
-                </div>
-                
-                <div class="form-group">
-                    <label for="tokenSymbol">Token Symbol</label>
-                    <input type="text" id="tokenSymbol" placeholder="e.g., MAT" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="tokenDecimals">Decimals</label>
-                    <input type="number" id="tokenDecimals" value="9" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="tokenSupply">Total Supply</label>
-                    <input type="number" id="tokenSupply" required value="1000000" placeholder="1000000">
-                </div>
-                
-                <div class="form-group">
-                    <label for="tokenDescription">Description</label>
-                    <textarea id="tokenDescription" rows="3" placeholder="Describe your token and its purpose..." required></textarea>
-                </div>
-                
-                <div class="form-group">
-                    <label>Token Logo (Optional)</label>
-                    <div class="upload-area" id="logoDropzone">
-                        <span>Click or drag to upload your logo</span>
-                        <input type="file" id="logoUpload" accept="image/*" class="hidden-input">
-                        <img id="logo-preview" />
-                    </div>
-                </div>
-
-                <div class="toggle-group">
-                    <div class="toggle-item">
-                        <div class="toggle-content">
-                            <div class="toggle-title">
-                                Creator's Info (Optional)
-                                <span class="toggle-price">+0.1 SOL</span>
-                            </div>
-                            <div class="toggle-description">
-                                Change the information of the creator in the metadata. By default, it is Luna Launch.
-                            </div>
-                        </div>
-                        <div class="toggle-switch" id="creatorToggle">
-                            <div class="toggle-slider"></div>
-                        </div>
-                    </div>
-                    
-                    <div class="expandable-section hidden" id="creatorSection">
-                        <div class="form-group">
-                            <label for="creatorName">Creator Name</label>
-                            <input type="text" id="creatorName" placeholder="Your name or company">
-                        </div>
-                        <div class="form-group">
-                            <label for="creatorAddress">Creator Wallet Address</label>
-                            <input type="text" id="creatorAddress" placeholder="Creator's wallet address">
-                        </div>
-                    </div>
-
-                    <div class="toggle-item">
-                        <div class="toggle-content">
-                            <div class="toggle-title">
-                                Add Social Links & Tags
-                                <span class="toggle-price">+0.1 SOL</span>
-                            </div>
-                            <div class="toggle-description">
-                                Add links to your token metadata.
-                            </div>
-                        </div>
-                        <div class="toggle-switch" id="socialToggle">
-                            <div class="toggle-slider"></div>
-                        </div>
-                    </div>
-                    
-                    <div class="expandable-section hidden" id="socialSection">
-                        <div class="form-group">
-                            <label for="website">Website</label>
-                            <input type="url" id="website" placeholder="https://yourwebsite.com">
-                        </div>
-                        <div class="form-group">
-                            <label for="twitter">Twitter</label>
-                            <input type="text" id="twitter" placeholder="@yourusername">
-                        </div>
-                        <div class="form-group">
-                            <label for="telegram">Telegram</label>
-                            <input type="text" id="telegram" placeholder="https://t.me/yourchannel">
-                        </div>
-                        <div class="form-group">
-                            <label for="discord">Discord</label>
-                            <input type="text" id="discord" placeholder="https://discord.gg/yourserver">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="authority-section">
-                    <div class="authority-title">Revoke Authorities (Investor's Booster)</div>
-                    <div class="authority-subtitle">
-                        Solana Token has 3 authorities: Freeze Authority, Mint Authority, and Update Authority. Revoke them to attract more investors.
-                    </div>
-                    
-                    <div class="authority-cards">
-                        <div class="authority-card" id="freezeCard">
-                            <div class="authority-card-header">
-                                <div class="authority-card-title">Revoke Freeze</div>
-                                <div class="authority-card-checkbox"></div>
-                            </div>
-                            <div class="authority-card-description">
-                                No one will be able to freeze holders' token accounts anymore
-                            </div>
-                            <div class="authority-card-price">+0.1 SOL</div>
-                        </div>
-                        
-                        <div class="authority-card" id="mintCard">
-                            <div class="authority-card-header">
-                                <div class="authority-card-title">Revoke Mint</div>
-                                <div class="authority-card-checkbox"></div>
-                            </div>
-                            <div class="authority-card-description">
-                                No one will be able to create more tokens anymore
-                            </div>
-                            <div class="authority-card-price">+0.1 SOL</div>
-                        </div>
-                        
-                        <div class="authority-card" id="updateCard">
-                            <div class="authority-card-header">
-                                <div class="authority-card-title">Revoke Update</div>
-                                <div class="authority-card-checkbox"></div>
-                            </div>
-                            <div class="authority-card-description">
-                                No one will be able to modify token metadata anymore
-                            </div>
-                            <div class="authority-card-price">+0.1 SOL</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="tokenRecipient">Recipient Wallet Address</label>
-                    <input type="text" id="tokenRecipient" placeholder="Connect wallet to auto-fill" required>
-                </div>
-                
-                <button type="button" class="btn btn-connect" id="connectWalletBtn">Connect Phantom Wallet</button>
-                <button type="submit" class="btn" id="launchTokenBtn">Launch Token</button>
-                
-                <div class="fee-display">
-                    <div class="fee-text">
-                        Total Fees: <span class="fee-crossed fee-amount">0.2+0.6 SOL</span> <span class="fee-amount" id="totalFee">0.3 SOL</span>
-                    </div>
-                </div>
-            </form>
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="#" class="nav-logo">Luna Launch</a>
+            <ul class="nav-links">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#how-it-works">How it Works</a></li>
+                <li><a href="#pricing">Pricing</a></li>
+                <li><a href="/create" class="nav-cta">Create Token</a></li>
+            </ul>
+            <button class="mobile-menu-toggle">
+                <i class="fas fa-bars"></i>
+            </button>
         </div>
-    </main>
+    </nav>
 
-    <footer>
-        <p>© 2025 Luna Launch • Powered by Solana</p>
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <div class="hero-badge">
+                <i class="fas fa-rocket"></i>
+                Trusted by 10,000+ creators
+            </div>
+            <h1 class="hero-title">Create Solana Tokens in Seconds</h1>
+            <p class="hero-subtitle">
+                Launch your SPL token on Solana without coding. Professional metadata, instant deployment, 
+                and full control over your token's future.
+            </p>
+            <div class="hero-cta">
+                <a href="/create" class="btn-primary">
+                    <i class="fas fa-plus"></i>
+                    Create Your Token
+                </a>
+                <a href="#how-it-works" class="btn-secondary">
+                    <i class="fas fa-play"></i>
+                    See How It Works
+                </a>
+            </div>
+            <div class="hero-stats">
+                <div class="stat-item">
+                    <span class="stat-number">50K+</span>
+                    <span class="stat-label">Tokens Created</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">10K+</span>
+                    <span class="stat-label">Happy Users</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">99.9%</span>
+                    <span class="stat-label">Success Rate</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="features-container">
+            <div class="section-header">
+                <h2 class="section-title">Why Choose Luna Launch?</h2>
+                <p class="section-subtitle">
+                    Everything you need to create and deploy professional Solana tokens
+                </p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card animate-on-scroll">
+                    <div class="feature-icon">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <h3 class="feature-title">Lightning Fast</h3>
+                    <p class="feature-description">
+                        Deploy your token in under 30 seconds. No waiting, no delays - just instant results.
+                    </p>
+                </div>
+                <div class="feature-card animate-on-scroll">
+                    <div class="feature-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h3 class="feature-title">Secure & Audited</h3>
+                    <p class="feature-description">
+                        Battle-tested smart contracts audited by top security firms. Your tokens are safe with us.
+                    </p>
+                </div>
+                <div class="feature-card animate-on-scroll">
+                    <div class="feature-icon">
+                        <i class="fas fa-code"></i>
+                    </div>
+                    <h3 class="feature-title">No Coding Required</h3>
+                    <p class="feature-description">
+                        Simple form-based interface. Create tokens without writing a single line of code.
+                    </p>
+                </div>
+                <div class="feature-card animate-on-scroll">
+                    <div class="feature-icon">
+                        <i class="fas fa-cog"></i>
+                    </div>
+                    <h3 class="feature-title">Full Customization</h3>
+                    <p class="feature-description">
+                        Custom metadata, social links, authority controls, and professional branding options.
+                    </p>
+                </div>
+                <div class="feature-card animate-on-scroll">
+                    <div class="feature-icon">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <h3 class="feature-title">Low Fees</h3>
+                    <p class="feature-description">
+                        Starting at just 0.3 SOL. No hidden fees, no surprises - transparent pricing always.
+                    </p>
+                </div>
+                <div class="feature-card animate-on-scroll">
+                    <div class="feature-icon">
+                        <i class="fas fa-headset"></i>
+                    </div>
+                    <h3 class="feature-title">24/7 Support</h3>
+                    <p class="feature-description">
+                        Expert support team ready to help you succeed. Discord, Telegram, and email support.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="how-it-works" id="how-it-works">
+        <div class="steps-container">
+            <div class="section-header">
+                <h2 class="section-title">How It Works</h2>
+                <p class="section-subtitle">
+                    Create your Solana token in 3 simple steps
+                </p>
+            </div>
+            <div class="steps-grid">
+                <div class="step animate-on-scroll">
+                    <div class="step-number">1</div>
+                    <h3 class="step-title">Fill Token Details</h3>
+                    <p class="step-description">
+                        Enter your token name, symbol, supply, and upload your logo. Add optional metadata and social links.
+                    </p>
+                </div>
+                <div class="step animate-on-scroll">
+                    <div class="step-number">2</div>
+                    <h3 class="step-title">Connect Wallet</h3>
+                    <p class="step-description">
+                        Connect your Phantom wallet and confirm the transaction. Your wallet will auto-fill recipient address.
+                    </p>
+                </div>
+                <div class="step animate-on-scroll">
+                    <div class="step-number">3</div>
+                    <h3 class="step-title">Launch & Trade</h3>
+                    <p class="step-description">
+                        Your token is instantly deployed to Solana mainnet. Start trading immediately on any DEX.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section class="pricing" id="pricing">
+        <div class="pricing-container">
+            <div class="section-header">
+                <h2 class="section-title">Simple, Transparent Pricing</h2>
+                <p class="section-subtitle">
+                    No monthly fees, no hidden costs. Pay once, own forever.
+                </p>
+            </div>
+            <div class="pricing-card animate-on-scroll">
+                <div class="pricing-badge">Most Popular</div>
+                <h3 class="pricing-title">Token Creation</h3>
+                <div class="pricing-price">0.3 SOL</div>
+                <ul class="pricing-features">
+                    <li>Instant token deployment</li>
+                    <li>Custom metadata & branding</li>
+                    <li>Token logo upload</li>
+                    <li>Social media links</li>
+                    <li>Authority management</li>
+                    <li>Professional support</li>
+                    <li>Lifetime ownership</li>
+                    <li>No recurring fees</li>
+                </ul>
+                <a href="/create" class="btn-primary" style="width: 100%; justify-content: center;">
+                    <i class="fas fa-rocket"></i>
+                    Create Your Token Now
+                </a>
+                <p style="margin-top: var(--space-md); color: var(--text-muted); font-size: 0.875rem;">
+                    + Optional features from 0.1 SOL each
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="cta-container">
+            <h2 class="cta-title">Ready to Launch Your Token?</h2>
+            <p class="cta-subtitle">
+                Join thousands of successful creators who trust Luna Launch for their token deployment needs.
+            </p>
+            <a href="/create" class="btn-cta">
+                <i class="fas fa-plus"></i>
+                Start Creating Now
+            </a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>Luna Launch</h3>
+                    <p style="color: var(--text-muted); margin-bottom: var(--space-md);">
+                        The most trusted platform for creating Solana tokens. 
+                        Fast, secure, and user-friendly.
+                    </p>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                        <a href="#"><i class="fab fa-discord"></i></a>
+                        <a href="#"><i class="fab fa-telegram"></i></a>
+                        <a href="#"><i class="fab fa-github"></i></a>
+                    </div>
+                </div>
+                <div class="footer-section">
+                    <h3>Product</h3>
+                    <ul class="footer-links">
+                        <li><a href="/create">Create Token</a></li>
+                        <li><a href="#features">Features</a></li>
+                        <li><a href="#pricing">Pricing</a></li>
+                        <li><a href="/docs">Documentation</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Support</h3>
+                    <ul class="footer-links">
+                        <li><a href="/help">Help Center</a></li>
+                        <li><a href="/contact">Contact Us</a></li>
+                        <li><a href="/discord">Discord Community</a></li>
+                        <li><a href="/status">Status Page</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Legal</h3>
+                    <ul class="footer-links">
+                        <li><a href="/terms">Terms of Service</a></li>
+                        <li><a href="/privacy">Privacy Policy</a></li>
+                        <li><a href="/cookies">Cookie Policy</a></li>
+                        <li><a href="/security">Security</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>© 2025 Luna Launch. All rights reserved. Built on Solana.</p>
+            </div>
+        </div>
     </footer>
-    
+
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const connectWalletBtn = document.getElementById('connectWalletBtn');
-            const launchTokenBtn = document.getElementById('launchTokenBtn');
-            const tokenRecipientInput = document.getElementById('tokenRecipient');
-            const logoDropzone = document.getElementById('logoDropzone');
-            const logoUpload = document.getElementById('logoUpload');
-            const logoPreview = document.getElementById('logo-preview');
-            
-            // Toggle switches
-            const creatorToggle = document.getElementById('creatorToggle');
-            const socialToggle = document.getElementById('socialToggle');
-            const creatorSection = document.getElementById('creatorSection');
-            const socialSection = document.getElementById('socialSection');
-            
-            // Authority cards
-            const freezeCard = document.getElementById('freezeCard');
-            const mintCard = document.getElementById('mintCard');
-            const updateCard = document.getElementById('updateCard');
-            const totalFeeDisplay = document.getElementById('totalFee');
-            
-            let mintKeypair;
-            let logoBase64 = null;
-            let selectedAuthorities = {
-                freeze: false,
-                mint: false,
-                update: false
-            };
-            let optionalFeatures = {
-                creator: false,
-                social: false
-            };
-
-            // Toggle functionality
-            function setupToggle(toggle, section, feature) {
-                toggle.addEventListener('click', () => {
-                    const isActive = toggle.classList.toggle('active');
-                    optionalFeatures[feature] = isActive;
-                    
-                    if (isActive) {
-                        section.classList.remove('hidden');
-                        section.classList.add('active');
-                    } else {
-                        section.classList.add('hidden');
-                        section.classList.remove('active');
-                    }
-                    
-                    updateTotalFee();
-                });
-            }
-
-            setupToggle(creatorToggle, creatorSection, 'creator');
-            setupToggle(socialToggle, socialSection, 'social');
-
-            // Authority cards functionality
-            function setupAuthorityCard(card, authority) {
-                card.addEventListener('click', () => {
-                    const isActive = card.classList.toggle('active');
-                    selectedAuthorities[authority] = isActive;
-                    updateTotalFee();
-                });
-            }
-
-            setupAuthorityCard(freezeCard, 'freeze');
-            setupAuthorityCard(mintCard, 'mint');
-            setupAuthorityCard(updateCard, 'update');
-
-            // Update total fee calculation
-            function updateTotalFee() {
-                let total = 0.3; // Base fee
-                
-                // Authority fees
-                if (selectedAuthorities.freeze) total += 0.1;
-                if (selectedAuthorities.mint) total += 0.1;
-                if (selectedAuthorities.update) total += 0.1;
-                
-                // Optional features
-                if (optionalFeatures.creator) total += 0.1;
-                if (optionalFeatures.social) total += 0.1;
-                
-                totalFeeDisplay.textContent = total.toFixed(1) + ' SOL';
-            }
-
-            const getProvider = () => window.phantom?.solana;
-            
-            // Wallet connection
-            connectWalletBtn.addEventListener('click', async () => {
-                const provider = getProvider();
-                if (provider) {
-                    try {
-                        const resp = await provider.connect();
-                        if (resp.publicKey) {
-                            const publicKey = resp.publicKey.toString();
-                            connectWalletBtn.innerHTML = `✅ Connected: ${publicKey.slice(0, 4)}...${publicKey.slice(-4)}`;
-                            connectWalletBtn.classList.add('connected');
-                            tokenRecipientInput.value = publicKey;
-                        }
-                    } catch (err) {
-                        console.error('Wallet connection error:', err);
-                        Swal.fire('Connection Failed', 'Please try connecting your wallet again.', 'error');
-                    }
-                } else { 
-                    window.open('https://phantom.app/', '_blank'); 
-                }
-            });
-
-            // Logo upload
-            logoDropzone.addEventListener('click', () => logoUpload.click());
-            logoUpload.addEventListener('change', (e) => {
-                if (e.target.files.length) {
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        logoBase64 = event.target.result;
-                        logoPreview.src = logoBase64;
-                        logoPreview.style.display = 'block';
-                    };
-                    reader.readAsDataURL(e.target.files[0]);
-                }
-            });
-
-            // Form submission
-            document.getElementById('token-form').addEventListener('submit', async (e) => {
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
                 e.preventDefault();
-                
-                const provider = getProvider();
-                if (!provider || !provider.publicKey) {
-                    return Swal.fire('Wallet Not Connected', 'Please connect your Phantom wallet first.', 'warning');
-                }
-
-                // Generate mint keypair
-                mintKeypair = solanaWeb3.Keypair.generate();
-
-                // Prepare token data
-                const tokenData = {
-                    name: document.getElementById('tokenName').value,
-                    symbol: document.getElementById('tokenSymbol').value,
-                    description: document.getElementById('tokenDescription').value,
-                    imageBase64: logoBase64,
-                    supply: parseFloat(document.getElementById('tokenSupply').value),
-                    decimals: parseInt(document.getElementById('tokenDecimals').value, 10),
-                    recipient: tokenRecipientInput.value,
-                    mintAddress: mintKeypair.publicKey.toBase58(),
-                    options: {
-                        freeze_authority: !selectedAuthorities.freeze,
-                        revoke_mint_authority: selectedAuthorities.mint,
-                        revoke_update_authority: selectedAuthorities.update,
-                    },
-                    creator: optionalFeatures.creator ? {
-                        name: document.getElementById('creatorName').value,
-                        address: document.getElementById('creatorAddress').value
-                    } : null,
-                    social: optionalFeatures.social ? {
-                        website: document.getElementById('website').value,
-                        twitter: document.getElementById('twitter').value,
-                        telegram: document.getElementById('telegram').value,
-                        discord: document.getElementById('discord').value
-                    } : null
-                };
-
-                // Show loading state
-                launchTokenBtn.innerHTML = '<div class="loading-spinner"></div>Creating Token...';
-                launchTokenBtn.disabled = true;
-
-                Swal.fire({ 
-                    title: 'Preparing Transaction...', 
-                    text: 'Please wait while we prepare your token creation transaction.', 
-                    icon: 'info', 
-                    allowOutsideClick: false, 
-                    didOpen: () => Swal.showLoading() 
-                });
-
-                try {
-                    // Call API
-                    console.log('Sending request to API...');
-                    const response = await fetch('/api/create-token', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(tokenData)
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
                     });
-
-                    console.log('Response status:', response.status);
-
-                    const responseText = await response.text();
-                    console.log('Raw response:', responseText);
-
-                    let result;
-                    try {
-                        result = JSON.parse(responseText);
-                    } catch (parseError) {
-                        console.error('JSON parse error:', parseError);
-                        throw new Error(`Server response is not valid JSON: ${responseText.substring(0, 100)}...`);
-                    }
-
-                    if (!result.success) {
-                        throw new Error(result.error || 'Unknown server error');
-                    }
-
-                    console.log('Transaction received, signing...');
-                    // Sign and send transaction
-                    await signAndSendTransaction(result.serializedTransaction);
-
-                } catch (error) {
-                    console.error('Error during token creation:', error);
-                    launchTokenBtn.innerHTML = 'Launch Token';
-                    launchTokenBtn.disabled = false;
-                    Swal.fire('Error', error.message || 'An error occurred while creating your token.', 'error');
                 }
             });
+        });
 
-            async function signAndSendTransaction(serializedTransaction) {
-                const provider = getProvider();
-                try {
-                    const serializedBuffer = Uint8Array.from(atob(serializedTransaction), c => c.charCodeAt(0));
-                    const transaction = solanaWeb3.Transaction.from(serializedBuffer);
-                    transaction.partialSign(mintKeypair);
-                    
-                    console.log('Sending transaction...');
-                    const { signature } = await provider.signAndSendTransaction(transaction);
-                    console.log('Transaction sent with signature:', signature);
-                    
-                    // Reset button
-                    launchTokenBtn.innerHTML = 'Launch Token';
-                    launchTokenBtn.disabled = false;
-                    
-                    // Show immediate success with signature
-                    Swal.fire({ 
-                        title: 'Transaction Sent!', 
-                        html: `
-                            <p>Your transaction has been sent successfully!</p>
-                            <p><strong>Signature:</strong> ${signature}</p>
-                            <p>Confirmation may take a few minutes.</p>
-                            <br>
-                            <a href="https://solscan.io/tx/${signature}" target="_blank" style="display: inline-block; background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View on Solscan</a>
-                        `, 
-                        icon: 'success',
-                        confirmButtonText: 'Close',
-                        allowOutsideClick: true
-                    });
-                    
-                    // Try to confirm in background with shorter timeout  
-                    try {
-                        console.log('Attempting to confirm transaction...');
-                        const connection = new solanaWeb3.Connection(
-                            solanaWeb3.clusterApiUrl('mainnet-beta'), 
-                            'confirmed'
-                        );
-                        
-                        const confirmation = await Promise.race([
-                            connection.confirmTransaction(signature, 'confirmed'),
-                            new Promise((_, reject) => 
-                                setTimeout(() => reject(new Error('Confirmation timeout')), 15000)
-                            )
-                        ]);
-                        
-                        console.log('Transaction confirmed:', confirmation);
-                        
-                        // Update success message if confirmed
-                        Swal.fire({ 
-                            title: 'Token Created Successfully!', 
-                            html: `
-                                <p>✅ Your token has been created and confirmed!</p>
-                                <p><strong>Signature:</strong> ${signature}</p>
-                                <br>
-                                <a href="https://solscan.io/tx/${signature}" target="_blank" style="display: inline-block; background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View on Solscan</a>
-                            `, 
-                            icon: 'success'
-                        });
-                        
-                    } catch (confirmError) {
-                        console.log('Confirmation failed or timed out, but transaction was sent:', confirmError.message);
-                    }
-                    
-                } catch (err) {
-                    console.error('Signing error:', err);
-                    launchTokenBtn.innerHTML = 'Launch Token';
-                    launchTokenBtn.disabled = false;
-                    
-                    if (err.message.includes('User rejected')) {
-                        Swal.fire('Transaction Cancelled', 'You cancelled the transaction.', 'info');
-                    } else {
-                        Swal.fire('Error', err.message || 'Error during transaction signing.', 'error');
-                    }
+        // Animate elements on scroll
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver(function(entries) {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
                 }
+            });
+        }, observerOptions);
+
+        // Observe all animate-on-scroll elements
+        document.querySelectorAll('.animate-on-scroll').forEach(el => {
+            observer.observe(el);
+        });
+
+        // Mobile menu toggle (basic implementation)
+        const mobileMenuToggle = document.querySelector('.mobile-menu-toggle');
+        const navLinks = document.querySelector('.nav-links');
+
+        mobileMenuToggle.addEventListener('click', () => {
+            navLinks.style.display = navLinks.style.display === 'flex' ? 'none' : 'flex';
+        });
+
+        // Add active class to navigation on scroll
+        window.addEventListener('scroll', () => {
+            const nav = document.querySelector('nav');
+            if (window.scrollY > 100) {
+                nav.style.background = 'var(--bg-overlay)';
+            } else {
+                nav.style.background = 'var(--bg-overlay)';
             }
         });
+
+        // Counter animation for stats
+        function animateCounter(element, target, duration = 2000) {
+            let current = 0;
+            const increment = target / (duration / 16);
+            
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= target) {
+                    current = target;
+                    clearInterval(timer);
+                }
+                
+                if (target >= 1000) {
+                    element.textContent = Math.floor(current / 1000) + 'K+';
+                } else if (target >= 10) {
+                    element.textContent = current.toFixed(1) + '%';
+                } else {
+                    element.textContent = Math.floor(current) + '+';
+                }
+            }, 16);
+        }
+
+        // Animate stats when they come into view
+        const statsObserver = new IntersectionObserver(function(entries) {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const number = entry.target;
+                    const text = number.textContent;
+                    
+                    if (text.includes('50K+')) {
+                        animateCounter(number, 50000);
+                    } else if (text.includes('10K+')) {
+                        animateCounter(number, 10000);
+                    } else if (text.includes('99.9%')) {
+                        animateCounter(number, 99.9);
+                    }
+                    
+                    statsObserver.unobserve(number);
+                }
+            });
+        }, { threshold: 0.5 });
+
+        document.querySelectorAll('.stat-number').forEach(stat => {
+            statsObserver.observe(stat);
+        });
+
+        // Add floating animation to feature icons
+        document.querySelectorAll('.feature-icon').forEach((icon, index) => {
+            icon.style.animationDelay = `${index * 0.2}s`;
+            icon.style.animation = 'float 3s ease-in-out infinite';
+        });
+
+        // CSS animation for floating effect
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes float {
+                0%, 100% { transform: translateY(0px); }
+                50% { transform: translateY(-10px); }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Add particle effect to hero section (optional enhancement)
+        function createParticle() {
+            const particle = document.createElement('div');
+            particle.style.position = 'absolute';
+            particle.style.width = '4px';
+            particle.style.height = '4px';
+            particle.style.background = 'var(--primary-purple)';
+            particle.style.borderRadius = '50%';
+            particle.style.opacity = '0.6';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.top = '100%';
+            particle.style.pointerEvents = 'none';
+            
+            const hero = document.querySelector('.hero');
+            hero.appendChild(particle);
+            
+            // Animate particle
+            particle.animate([
+                { transform: 'translateY(0px)', opacity: 0.6 },
+                { transform: 'translateY(-100vh)', opacity: 0 }
+            ], {
+                duration: Math.random() * 3000 + 2000,
+                easing: 'linear'
+            }).onfinish = () => {
+                particle.remove();
+            };
+        }
+
+        // Create particles periodically
+        setInterval(createParticle, 500);
     </script>
 </body>
 </html>
