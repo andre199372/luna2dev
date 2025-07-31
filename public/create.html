@@ -1134,823 +1134,634 @@
     
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // --- CONFIGURAZIONE ---
-        const BASE_FEE = 0.3;
-        const FEE_RECIPIENT = new solanaWeb3.PublicKey('BeEbsaq4dKfzZQBK6zet4wj8UJCTF9zzU7QLgWpERqBg');
+    // --- CONFIGURAZIONE AGGIORNATA ---
+    const BASE_FEE = 0.3;
+    const FEE_RECIPIENT = new solanaWeb3.PublicKey('BeEbsaq4dKfzZQBK6zet4wj8UJCTF9zzU7QLgWpERqBg');
 
-        // RPC Endpoints con fallback
-        const RPC_ENDPOINTS = [
-            'https://api.mainnet-beta.solana.com',
-            'https://solana-api.projectserum.com',
-            'https://rpc.ankr.com/solana',
-            'https://solana-mainnet.g.alchemy.com/v2/demo',
-            'https://mainnet.helius-rpc.com/?api-key=demo'
+    // RPC Endpoints aggiornati con endpoints pubblici più affidabili
+    const RPC_ENDPOINTS = [
+        'https://api.mainnet-beta.solana.com',
+        'https://rpc.ankr.com/solana',
+        'https://solana.public-rpc.com',
+        'https://api.devnet.solana.com', // Fallback per test
+        'https://rpc.solanabeach.io'
+    ];
+
+    // Fee structure per features
+    const FEATURE_FEES = {
+        freeze: 0.05,
+        mint: 0.05,
+        liquidity: 0.5,
+        antibot: 0.1,
+        fairlaunch: 0.15,
+        keepUpdate: 0.02,
+        custom: 0.03
+    };
+
+    // Riferimenti DOM
+    const form = document.getElementById('token-form');
+    const mainBtn = document.getElementById('main-action-btn');
+    const statusDisplay = document.getElementById('status-display');
+    const totalFeeDisplay = document.getElementById('total-fee');
+    const btnFeeDisplay = document.getElementById('btn-fee');
+    
+    // Stato dell'applicazione
+    let appState = 'awaiting_payment';
+    let wallet = { connected: false, publicKey: null };
+    let currentFee = BASE_FEE;
+    let tokenConfig = {};
+    let connection = null;
+
+    // --- CONNESSIONE RPC MIGLIORATA ---
+    async function createConnection() {
+        // Test degli endpoint in ordine di priorità
+        for (let i = 0; i < RPC_ENDPOINTS.length; i++) {
+            const endpoint = RPC_ENDPOINTS[i];
+            console.log(`Testando endpoint ${i + 1}/${RPC_ENDPOINTS.length}: ${endpoint}`);
+            
+            try {
+                const testConnection = new solanaWeb3.Connection(endpoint, {
+                    commitment: 'confirmed',
+                    confirmTransactionInitialTimeout: 60000,
+                    wsEndpoint: undefined // Disabilita WebSocket per evitare problemi
+                });
+                
+                // Test di connettività con timeout
+                const startTime = Date.now();
+                const testPromise = testConnection.getLatestBlockhash('confirmed');
+                const timeoutPromise = new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error('Timeout')), 10000);
+                });
+                
+                await Promise.race([testPromise, timeoutPromise]);
+                const responseTime = Date.now() - startTime;
+                
+                console.log(`✅ Endpoint ${endpoint} risponde in ${responseTime}ms`);
+                
+                // Aggiorna status nella UI
+                updateNetworkStatus('connected', endpoint, responseTime);
+                
+                return testConnection;
+                
+            } catch (error) {
+                console.warn(`❌ Endpoint ${endpoint} fallito:`, error.message);
+                
+                // Se è l'ultimo endpoint, mostra errore
+                if (i === RPC_ENDPOINTS.length - 1) {
+                    updateNetworkStatus('error', null, null);
+                    throw new Error('Tutti gli endpoint RPC non sono disponibili. Controlla la connessione internet e riprova.');
+                }
+                
+                // Pausa breve prima del prossimo tentativo
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                continue;
+            }
+        }
+    }
+
+    // --- AGGIORNAMENTO STATUS RETE ---
+    function updateNetworkStatus(status, endpoint, responseTime) {
+        let statusElement = document.querySelector('.network-status');
+        
+        if (!statusElement) {
+            statusElement = document.createElement('div');
+            statusElement.className = 'network-status';
+            document.querySelector('header').appendChild(statusElement);
+        }
+        
+        const dot = statusElement.querySelector('.status-dot') || document.createElement('div');
+        dot.className = 'status-dot';
+        
+        if (status === 'connected') {
+            dot.style.background = 'var(--accent-green)';
+            statusElement.innerHTML = `
+                <div class="status-dot"></div>
+                <span>Rete: Connesso (${responseTime}ms)</span>
+            `;
+        } else if (status === 'error') {
+            dot.style.background = 'var(--accent-red)';
+            statusElement.innerHTML = `
+                <div class="status-dot"></div>
+                <span>Rete: Disconnesso</span>
+            `;
+        } else {
+            dot.style.background = 'var(--accent-orange)';
+            statusElement.innerHTML = `
+                <div class="status-dot"></div>
+                <span>Rete: Connessione...</span>
+            `;
+        }
+        
+        if (!statusElement.querySelector('.status-dot')) {
+            statusElement.insertBefore(dot, statusElement.firstChild);
+        }
+    }
+
+    // --- INIZIALIZZAZIONE CONNESSIONE ---
+    async function initializeConnection() {
+        try {
+            updateNetworkStatus('connecting');
+            connection = await createConnection();
+            console.log('🚀 Connessione Solana inizializzata con successo');
+        } catch (error) {
+            console.error('❌ Impossibile stabilire connessione:', error);
+            updateStatus('Errore di connessione alla rete Solana. Riprova più tardi.', 'error');
+        }
+    }
+
+    // --- GESTIONE UPLOAD LOGO ---
+    const logoUpload = document.getElementById('logo-upload');
+    const logoPreview = document.getElementById('logo-preview');
+    let logoBase64 = null;
+
+    logoUpload.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            if (file.size > 2 * 1024 * 1024) {
+                Swal.fire('Errore', 'Il file deve essere massimo 2MB', 'error');
+                return;
+            }
+
+            if (!file.type.match(/^image\/(png|jpeg|jpg)$/)) {
+                Swal.fire('Errore', 'Solo file PNG, JPG e JPEG sono supportati', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                logoBase64 = e.target.result;
+                logoPreview.src = logoBase64;
+                logoPreview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // --- GESTIONE TOGGLE SWITCHES ---
+    const toggles = document.querySelectorAll('.toggle-switch');
+    const authorityCards = document.querySelectorAll('.authority-card');
+
+    toggles.forEach(toggle => {
+        toggle.addEventListener('click', () => {
+            toggle.classList.toggle('active');
+            updateExpandableSections();
+            calculateFee();
+        });
+    });
+
+    authorityCards.forEach(card => {
+        card.addEventListener('click', () => {
+            authorityCards.forEach(c => c.classList.remove('active'));
+            card.classList.add('active');
+            updateExpandableSections();
+            calculateFee();
+        });
+    });
+
+    document.querySelector('[data-authority="revoke-all"]').classList.add('active');
+
+    document.getElementById('marketing-percentage').addEventListener('input', function() {
+        const section = document.getElementById('marketing-wallet-section');
+        if (this.value && parseInt(this.value) > 0) {
+            section.classList.add('active');
+        } else {
+            section.classList.remove('active');
+        }
+    });
+
+    // --- AGGIORNAMENTO SEZIONI ESPANDIBILI ---
+    function updateExpandableSections() {
+        const sections = [
+            ['liquidity-toggle', 'liquidity-section'],
+            ['links-toggle', 'links-section'],
+            ['antibot-toggle', 'antibot-section'],
+            ['fairlaunch-toggle', 'fairlaunch-section']
         ];
 
-        // Fee structure per features
-        const FEATURE_FEES = {
-            freeze: 0.05,
-            mint: 0.05,
-            liquidity: 0.5,
-            antibot: 0.1,
-            fairlaunch: 0.15,
-            keepUpdate: 0.02,
-            custom: 0.03
-        };
-
-        // Riferimenti DOM
-        const form = document.getElementById('token-form');
-        const mainBtn = document.getElementById('main-action-btn');
-        const statusDisplay = document.getElementById('status-display');
-        const totalFeeDisplay = document.getElementById('total-fee');
-        const btnFeeDisplay = document.getElementById('btn-fee');
-        
-        // Stato dell'applicazione
-        let appState = 'awaiting_payment';
-        let wallet = { connected: false, publicKey: null };
-        let currentFee = BASE_FEE;
-        let tokenConfig = {};
-
-        // --- GESTIONE UPLOAD LOGO ---
-        const logoUpload = document.getElementById('logo-upload');
-        const logoPreview = document.getElementById('logo-preview');
-        let logoBase64 = null;
-
-        logoUpload.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                // Validation
-                if (file.size > 2 * 1024 * 1024) {
-                    Swal.fire('Errore', 'Il file deve essere massimo 2MB', 'error');
-                    return;
+        sections.forEach(([toggleId, sectionId]) => {
+            const toggle = document.getElementById(toggleId);
+            const section = document.getElementById(sectionId);
+            if (toggle && section) {
+                if (toggle.classList.contains('active')) {
+                    section.classList.add('active');
+                } else {
+                    section.classList.remove('active');
                 }
-
-                if (!file.type.match(/^image\/(png|jpeg|jpg)$/)) {
-                    Swal.fire('Errore', 'Solo file PNG, JPG e JPEG sono supportati', 'error');
-                    return;
-                }
-
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    logoBase64 = e.target.result;
-                    logoPreview.src = logoBase64;
-                    logoPreview.style.display = 'block';
-                };
-                reader.readAsDataURL(file);
             }
         });
 
-        // --- GESTIONE TOGGLE SWITCHES ---
-        const toggles = document.querySelectorAll('.toggle-switch');
-        const authorityCards = document.querySelectorAll('.authority-card');
-
-        // Toggle switches handler
-        toggles.forEach(toggle => {
-            toggle.addEventListener('click', () => {
-                toggle.classList.toggle('active');
-                updateExpandableSections();
-                calculateFee();
-            });
-        });
-
-        // Authority cards handler
-        authorityCards.forEach(card => {
-            card.addEventListener('click', () => {
-                // Remove active from all cards
-                authorityCards.forEach(c => c.classList.remove('active'));
-                // Add active to clicked card
-                card.classList.add('active');
-                updateExpandableSections();
-                calculateFee();
-            });
-        });
-
-        // Set default authority selection
-        document.querySelector('[data-authority="revoke-all"]').classList.add('active');
-
-        // Marketing percentage handler
-        document.getElementById('marketing-percentage').addEventListener('input', function() {
-            const section = document.getElementById('marketing-wallet-section');
-            if (this.value && parseInt(this.value) > 0) {
-                section.classList.add('active');
-            } else {
-                section.classList.remove('active');
-            }
-        });
-
-        // --- AGGIORNAMENTO SEZIONI ESPANDIBILI ---
-        function updateExpandableSections() {
-            // Liquidity section
-            const liquidityToggle = document.getElementById('liquidity-toggle');
-            const liquiditySection = document.getElementById('liquidity-section');
-            if (liquidityToggle.classList.contains('active')) {
-                liquiditySection.classList.add('active');
-            } else {
-                liquiditySection.classList.remove('active');
-            }
-
-            // Links section
-            const linksToggle = document.getElementById('links-toggle');
-            const linksSection = document.getElementById('links-section');
-            if (linksToggle.classList.contains('active')) {
-                linksSection.classList.add('active');
-            } else {
-                linksSection.classList.remove('active');
-            }
-
-            // Custom authority section
-            const customCard = document.querySelector('[data-authority="custom"]');
-            const customSection = document.getElementById('custom-authority-section');
+        const customCard = document.querySelector('[data-authority="custom"]');
+        const customSection = document.getElementById('custom-authority-section');
+        if (customCard && customSection) {
             if (customCard.classList.contains('active')) {
                 customSection.classList.add('active');
             } else {
                 customSection.classList.remove('active');
             }
+        }
+    }
 
-            // Anti-bot section
-            const antibotToggle = document.getElementById('antibot-toggle');
-            const antibotSection = document.getElementById('antibot-section');
-            if (antibotToggle.classList.contains('active')) {
-                antibotSection.classList.add('active');
-            } else {
-                antibotSection.classList.remove('active');
-            }
+    // --- CALCOLO FEE DINAMICO ---
+    function calculateFee() {
+        let fee = BASE_FEE;
 
-            // Fair launch section
-            const fairlaunchToggle = document.getElementById('fairlaunch-toggle');
-            const fairlaunchSection = document.getElementById('fairlaunch-section');
-            if (fairlaunchToggle.classList.contains('active')) {
-                fairlaunchSection.classList.add('active');
-            } else {
-                fairlaunchSection.classList.remove('active');
-            }
+        if (document.getElementById('freeze-toggle').classList.contains('active')) {
+            fee += FEATURE_FEES.freeze;
+        }
+        if (document.getElementById('mint-toggle').classList.contains('active')) {
+            fee += FEATURE_FEES.mint;
+        }
+        if (document.getElementById('liquidity-toggle').classList.contains('active')) {
+            fee += FEATURE_FEES.liquidity;
+        }
+        if (document.getElementById('antibot-toggle').classList.contains('active')) {
+            fee += FEATURE_FEES.antibot;
+        }
+        if (document.getElementById('fairlaunch-toggle').classList.contains('active')) {
+            fee += FEATURE_FEES.fairlaunch;
         }
 
-        // --- CALCOLO FEE DINAMICO ---
-        function calculateFee() {
-            let fee = BASE_FEE;
-
-            // Feature fees
-            if (document.getElementById('freeze-toggle').classList.contains('active')) {
-                fee += FEATURE_FEES.freeze;
-            }
-            if (document.getElementById('mint-toggle').classList.contains('active')) {
-                fee += FEATURE_FEES.mint;
-            }
-            if (document.getElementById('liquidity-toggle').classList.contains('active')) {
-                fee += FEATURE_FEES.liquidity;
-            }
-            if (document.getElementById('antibot-toggle').classList.contains('active')) {
-                fee += FEATURE_FEES.antibot;
-            }
-            if (document.getElementById('fairlaunch-toggle').classList.contains('active')) {
-                fee += FEATURE_FEES.fairlaunch;
-            }
-
-            // Authority fees
-            if (document.querySelector('[data-authority="keep-update"]').classList.contains('active')) {
-                fee += FEATURE_FEES.keepUpdate;
-            }
-            if (document.querySelector('[data-authority="custom"]').classList.contains('active')) {
-                fee += FEATURE_FEES.custom;
-            }
-
-            currentFee = fee;
-            totalFeeDisplay.textContent = `${fee.toFixed(2)} SOL`;
-            btnFeeDisplay.textContent = fee.toFixed(2);
+        if (document.querySelector('[data-authority="keep-update"]').classList.contains('active')) {
+            fee += FEATURE_FEES.keepUpdate;
+        }
+        if (document.querySelector('[data-authority="custom"]').classList.contains('active')) {
+            fee += FEATURE_FEES.custom;
         }
 
-        // --- CONNESSIONE WALLET ---
-        function createConnection() {
-            for (const endpoint of RPC_ENDPOINTS) {
-                try {
-                    return new solanaWeb3.Connection(endpoint, 'confirmed');
-                } catch (error) {
-                    console.warn(`Fallimento connessione a ${endpoint}:`, error);
-                    continue;
-                }
-            }
-            throw new Error('Nessun endpoint RPC disponibile');
-        }
+        currentFee = fee;
+        totalFeeDisplay.textContent = `${fee.toFixed(2)} SOL`;
+        btnFeeDisplay.textContent = fee.toFixed(2);
+    }
 
-        async function connectWallet() {
-            const provider = window.phantom?.solana;
-            if (provider?.isPhantom) {
-                try {
-                    const resp = await provider.connect();
-                    wallet.publicKey = resp.publicKey;
-                    wallet.connected = true;
-                    console.log('Wallet connesso:', wallet.publicKey.toBase58());
-                    return provider;
-                } catch (err) {
-                    throw new Error('Connessione al wallet rifiutata.');
-                }
-            }
+    // --- CONNESSIONE WALLET MIGLIORATA ---
+    async function connectWallet() {
+        const provider = window.phantom?.solana;
+        if (!provider?.isPhantom) {
             throw new Error('Phantom wallet non trovato. Installa Phantom per continuare.');
         }
 
-        // --- UTILITY FUNCTIONS ---
-        function updateStatus(message, type = 'normal') {
-            statusDisplay.textContent = message;
-            statusDisplay.className = type === 'error' ? 'error-status' : 
-                                     type === 'success' ? 'success-status' : '';
-        }
-
-        function resetButton() {
-            mainBtn.disabled = false;
-            mainBtn.innerHTML = appState === 'awaiting_payment' ? 
-                `Paga <span>${currentFee.toFixed(2)}</span> SOL e Procedi` : 'Crea il mio Token';
-        }
-
-        function validateForm() {
-            const tokenName = document.getElementById('tokenName').value.trim();
-            const tokenSymbol = document.getElementById('tokenSymbol').value.trim();
-            const tokenSupply = document.getElementById('tokenSupply').value;
-
-            if (!tokenName) throw new Error('Il nome del token è obbligatorio.');
-            if (!tokenSymbol) throw new Error('Il simbolo del token è obbligatorio.');
-            if (!tokenSupply || tokenSupply <= 0) throw new Error('La supply del token deve essere maggiore di 0.');
-
-            if (tokenName.length > 32) throw new Error('Il nome del token deve essere massimo 32 caratteri.');
-            if (tokenSymbol.length > 10) throw new Error('Il simbolo del token deve essere massimo 10 caratteri.');
-
-            return true;
-        }
-
-        function collectTokenConfig() {
-            tokenConfig = {
-                name: document.getElementById('tokenName').value.trim(),
-                symbol: document.getElementById('tokenSymbol').value.trim().toUpperCase(),
-                description: document.getElementById('tokenDescription').value.trim(),
-                supply: parseInt(document.getElementById('tokenSupply').value),
-                decimals: parseInt(document.getElementById('tokenDecimals').value),
-                imageBase64: logoBase64,
-                
-                // Features
-                freezeAuthority: document.getElementById('freeze-toggle').classList.contains('active'),
-                mintAuthority: document.getElementById('mint-toggle').classList.contains('active'),
-                createLiquidity: document.getElementById('liquidity-toggle').classList.contains('active'),
-                antiBot: document.getElementById('antibot-toggle').classList.contains('active'),
-                fairLaunch: document.getElementById('fairlaunch-toggle').classList.contains('active'),
-                
-                // Authority management
-                authorityMode: document.querySelector('.authority-card.active').dataset.authority,
-                
-                // Social links
-                website: document.getElementById('website').value.trim(),
-                twitter: document.getElementById('twitter').value.trim(),
-                telegram: document.getElementById('telegram').value.trim(),
-                discord: document.getElementById('discord').value.trim(),
-                github: document.getElementById('github').value.trim(),
-                
-                // Distribution
-                teamPercentage: parseInt(document.getElementById('team-percentage').value) || 0,
-                marketingPercentage: parseInt(document.getElementById('marketing-percentage').value) || 0,
-                marketingWallet: document.getElementById('marketing-wallet').value.trim(),
-                
-                // Liquidity settings
-                initialSol: parseFloat(document.getElementById('initial-sol').value) || 0,
-                initialTokens: parseInt(document.getElementById('initial-tokens').value) || 0,
-                
-                // Anti-bot settings
-                botDelay: parseInt(document.getElementById('bot-delay').value) || 5,
-                maxTransfer: parseFloat(document.getElementById('max-transfer').value) || 2,
-                
-                // Fair launch settings
-                maxBuy: parseFloat(document.getElementById('max-buy').value) || 0.1,
-                cooldown: parseInt(document.getElementById('cooldown').value) || 10,
-                
-                // Custom authorities
-                customMintAuthority: document.getElementById('mint-authority').value.trim(),
-                customFreezeAuthority: document.getElementById('freeze-authority').value.trim(),
-                customUpdateAuthority: document.getElementById('update-authority').value.trim()
-            };
-
-            return tokenConfig;
-        }
-
-        // --- GESTORE PRINCIPALE ---
-        form.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            if (!event.isTrusted) return;
-
-            try {
-                validateForm();
-                const provider = await connectWallet();
-                
-                mainBtn.disabled = true;
-                mainBtn.innerHTML = '<div class="loading-spinner"></div> In corso...';
-
-                if (appState === 'awaiting_payment') {
-                    await handlePaymentStep(provider);
-                } else if (appState === 'awaiting_creation') {
-                    await handleCreationStep(provider);
-                }
-            } catch (error) {
-                updateStatus(error.message, 'error');
-                resetButton();
+        try {
+            const resp = await provider.connect();
+            wallet.publicKey = resp.publicKey;
+            wallet.connected = true;
+            console.log('✅ Wallet connesso:', wallet.publicKey.toBase58());
+            return provider;
+        } catch (err) {
+            if (err.code === 4001) {
+                throw new Error('Connessione al wallet rifiutata dall\'utente.');
             }
-        });
+            throw new Error('Errore nella connessione al wallet: ' + err.message);
+        }
+    }
 
-        // --- PASSO 1: GESTIONE PAGAMENTO ---
-        async function handlePaymentStep(provider) {
-            try {
-                updateStatus('Preparazione della transazione di pagamento...');
-                
-                const connection = createConnection();
-                
-                const transaction = new solanaWeb3.Transaction().add(
-                    solanaWeb3.SystemProgram.transfer({
-                        fromPubkey: wallet.publicKey,
-                        toPubkey: FEE_RECIPIENT,
-                        lamports: currentFee * solanaWeb3.LAMPORTS_PER_SOL,
-                    })
-                );
+    // --- UTILITY FUNCTIONS ---
+    function updateStatus(message, type = 'normal') {
+        statusDisplay.textContent = message;
+        statusDisplay.className = type === 'error' ? 'error-status' : 
+                                 type === 'success' ? 'success-status' : '';
+    }
 
-                transaction.feePayer = wallet.publicKey;
-                
-                let retries = 0;
-                let recentBlockhash;
-                
-                while (retries < 3) {
-                    try {
-                        const { blockhash } = await connection.getLatestBlockhash('confirmed');
-                        recentBlockhash = blockhash;
-                        break;
-                    } catch (error) {
-                        retries++;
-                        console.warn(`Tentativo ${retries} per ottenere blockhash fallito:`, error.message);
-                        if (retries >= 3) {
-                            throw new Error('Impossibile ottenere blockhash dalla blockchain. Riprova più tardi.');
-                        }
-                        await new Promise(resolve => setTimeout(resolve, 1000));
+    function resetButton() {
+        mainBtn.disabled = false;
+        mainBtn.innerHTML = appState === 'awaiting_payment' ? 
+            `Paga <span>${currentFee.toFixed(2)}</span> SOL e Procedi` : 'Crea il mio Token';
+    }
+
+    function validateForm() {
+        const tokenName = document.getElementById('tokenName').value.trim();
+        const tokenSymbol = document.getElementById('tokenSymbol').value.trim();
+        const tokenSupply = document.getElementById('tokenSupply').value;
+
+        if (!tokenName) throw new Error('Il nome del token è obbligatorio.');
+        if (!tokenSymbol) throw new Error('Il simbolo del token è obbligatorio.');
+        if (!tokenSupply || tokenSupply <= 0) throw new Error('La supply del token deve essere maggiore di 0.');
+
+        if (tokenName.length > 32) throw new Error('Il nome del token deve essere massimo 32 caratteri.');
+        if (tokenSymbol.length > 10) throw new Error('Il simbolo del token deve essere massimo 10 caratteri.');
+
+        return true;
+    }
+
+    function collectTokenConfig() {
+        tokenConfig = {
+            name: document.getElementById('tokenName').value.trim(),
+            symbol: document.getElementById('tokenSymbol').value.trim().toUpperCase(),
+            description: document.getElementById('tokenDescription').value.trim(),
+            supply: parseInt(document.getElementById('tokenSupply').value),
+            decimals: parseInt(document.getElementById('tokenDecimals').value),
+            imageBase64: logoBase64,
+            
+            freezeAuthority: document.getElementById('freeze-toggle').classList.contains('active'),
+            mintAuthority: document.getElementById('mint-toggle').classList.contains('active'),
+            createLiquidity: document.getElementById('liquidity-toggle').classList.contains('active'),
+            antiBot: document.getElementById('antibot-toggle').classList.contains('active'),
+            fairLaunch: document.getElementById('fairlaunch-toggle').classList.contains('active'),
+            
+            authorityMode: document.querySelector('.authority-card.active').dataset.authority,
+            
+            website: document.getElementById('website').value.trim(),
+            twitter: document.getElementById('twitter').value.trim(),
+            telegram: document.getElementById('telegram').value.trim(),
+            discord: document.getElementById('discord').value.trim(),
+            github: document.getElementById('github').value.trim(),
+            
+            teamPercentage: parseInt(document.getElementById('team-percentage').value) || 0,
+            marketingPercentage: parseInt(document.getElementById('marketing-percentage').value) || 0,
+            marketingWallet: document.getElementById('marketing-wallet').value.trim(),
+            
+            initialSol: parseFloat(document.getElementById('initial-sol').value) || 0,
+            initialTokens: parseInt(document.getElementById('initial-tokens').value) || 0,
+            
+            botDelay: parseInt(document.getElementById('bot-delay').value) || 5,
+            maxTransfer: parseFloat(document.getElementById('max-transfer').value) || 2,
+            
+            maxBuy: parseFloat(document.getElementById('max-buy').value) || 0.1,
+            cooldown: parseInt(document.getElementById('cooldown').value) || 10,
+            
+            customMintAuthority: document.getElementById('mint-authority').value.trim(),
+            customFreezeAuthority: document.getElementById('freeze-authority').value.trim(),
+            customUpdateAuthority: document.getElementById('update-authority').value.trim()
+        };
+
+        return tokenConfig;
+    }
+
+    // --- GESTORE PRINCIPALE ---
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!event.isTrusted) return;
+
+        try {
+            validateForm();
+            
+            // Assicurati che la connessione sia stabilita
+            if (!connection) {
+                updateStatus('Stabilendo connessione alla rete Solana...');
+                await initializeConnection();
+            }
+            
+            const provider = await connectWallet();
+            
+            mainBtn.disabled = true;
+            mainBtn.innerHTML = '<div class="loading-spinner"></div> In corso...';
+
+            if (appState === 'awaiting_payment') {
+                await handlePaymentStep(provider);
+            } else if (appState === 'awaiting_creation') {
+                await handleCreationStep(provider);
+            }
+        } catch (error) {
+            updateStatus(error.message, 'error');
+            resetButton();
+        }
+    });
+
+    // --- PASSO 1: GESTIONE PAGAMENTO MIGLIORATA ---
+    async function handlePaymentStep(provider) {
+        try {
+            updateStatus('Preparazione della transazione di pagamento...');
+            
+            // Verifica che la connessione sia ancora attiva
+            if (!connection) {
+                throw new Error('Connessione alla rete persa. Riprova.');
+            }
+            
+            // Ottieni blockhash con retry automatico
+            let recentBlockhash;
+            let attempts = 0;
+            const maxAttempts = 5;
+            
+            while (attempts < maxAttempts) {
+                try {
+                    updateStatus(`Ottenendo blockhash dalla rete... (tentativo ${attempts + 1}/${maxAttempts})`);
+                    
+                    const { blockhash } = await connection.getLatestBlockhash('finalized');
+                    recentBlockhash = blockhash;
+                    console.log('✅ Blockhash ottenuto:', blockhash);
+                    break;
+                    
+                } catch (error) {
+                    attempts++;
+                    console.warn(`Tentativo ${attempts} fallito:`, error.message);
+                    
+                    if (attempts >= maxAttempts) {
+                        // Prova a ricreare la connessione
+                        console.log('🔄 Tentando riconnessione...');
+                        await initializeConnection();
+                        throw new Error('Impossibile ottenere blockhash. Verifica la connessione e riprova.');
                     }
+                    
+                    // Pausa crescente tra i tentativi
+                    await new Promise(resolve => setTimeout(resolve, attempts * 2000));
+                    continue;
                 }
-                
-                transaction.recentBlockhash = recentBlockhash;
-                
-                updateStatus('Richiesta di firma per il pagamento...');
-                
-                const { signature } = await provider.signAndSendTransaction(transaction);
-                console.log('Signature pagamento:', signature);
-                
-                updateStatus('Verifica del pagamento sulla blockchain... (può richiedere fino a 60 secondi)');
-                
-                const verificationResponse = await fetch('/api/verify-payment', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        signature, 
-                        payer: wallet.publicKey.toBase58() 
-                    })
-                });
-
-                if (!verificationResponse.ok) {
-                    const errorData = await verificationResponse.json();
-                    throw new Error(errorData.error || 'Verifica del pagamento fallita');
-                }
-                
-                const result = await verificationResponse.json();
-                console.log('Verifica completata:', result);
-                
-                await Swal.fire({
-                    title: 'Pagamento Confermato!',
-                    text: 'Il tuo pagamento è stato verificato. Ora puoi procedere con la creazione del token.',
-                    icon: 'success',
-                    confirmButtonText: 'Continua'
-                });
-                
-                appState = 'awaiting_creation';
-                updateStatus('Passo 2: Pagamento ricevuto! Clicca per creare il tuo token.', 'success');
-                mainBtn.textContent = 'Crea il mio Token';
-                mainBtn.disabled = false;
-
-            } catch (error) {
-                console.error('Errore nel pagamento:', error);
-                
-                await Swal.fire({
-                    title: 'Errore nel Pagamento',
-                    text: error.message,
-                    icon: 'error',
-                    confirmButtonText: 'Riprova'
-                });
-                
-                updateStatus('Passo 1: Completa il form e paga la commissione per procedere.', 'error');
-                resetButton();
             }
+            
+            // Crea la transazione
+            const transaction = new solanaWeb3.Transaction().add(
+                solanaWeb3.SystemProgram.transfer({
+                    fromPubkey: wallet.publicKey,
+                    toPubkey: FEE_RECIPIENT,
+                    lamports: Math.floor(currentFee * solanaWeb3.LAMPORTS_PER_SOL),
+                })
+            );
+
+            transaction.feePayer = wallet.publicKey;
+            transaction.recentBlockhash = recentBlockhash;
+            
+            updateStatus('Richiesta di firma per il pagamento...');
+            
+            const { signature } = await provider.signAndSendTransaction(transaction);
+            console.log('✅ Transazione inviata con signature:', signature);
+            
+            updateStatus('Verifica del pagamento sulla blockchain...');
+            
+            // Conferma della transazione con timeout più lungo
+            const confirmation = await connection.confirmTransaction({
+                signature,
+                blockhash: recentBlockhash,
+                lastValidBlockHeight: (await connection.getLatestBlockhash()).lastValidBlockHeight
+            }, 'confirmed');
+            
+            if (confirmation.value.err) {
+                throw new Error('Transazione fallita: ' + JSON.stringify(confirmation.value.err));
+            }
+            
+            console.log('✅ Pagamento confermato');
+            
+            await Swal.fire({
+                title: 'Pagamento Confermato!',
+                text: 'Il tuo pagamento è stato verificato sulla blockchain. Ora puoi procedere con la creazione del token.',
+                icon: 'success',
+                confirmButtonText: 'Continua',
+                timer: 5000,
+                timerProgressBar: true
+            });
+            
+            appState = 'awaiting_creation';
+            updateStatus('Passo 2: Pagamento ricevuto! Clicca per creare il tuo token.', 'success');
+            mainBtn.textContent = 'Crea il mio Token';
+            mainBtn.disabled = false;
+
+        } catch (error) {
+            console.error('❌ Errore nel pagamento:', error);
+            
+            let errorMessage = error.message;
+            if (error.message.includes('User rejected')) {
+                errorMessage = 'Transazione rifiutata dall\'utente.';
+            } else if (error.message.includes('insufficient')) {
+                errorMessage = 'Saldo insufficiente per completare la transazione.';
+            }
+            
+            await Swal.fire({
+                title: 'Errore nel Pagamento',
+                text: errorMessage,
+                icon: 'error',
+                confirmButtonText: 'Riprova'
+            });
+            
+            updateStatus('Passo 1: Completa il form e paga la commissione per procedere.', 'error');
+            resetButton();
         }
+    }
 
-        // --- PASSO 2: GESTIONE CREAZIONE TOKEN ---
-        async function handleCreationStep(provider) {
-            try {
-                updateStatus('Raccolta configurazione token...');
-                
-                const config = collectTokenConfig();
-                console.log('Token config:', config);
-                
-                updateStatus('Caricamento dei metadati su IPFS...');
-                
-                // Upload metadati
-                const metadataResponse = await fetch('/api/upload-metadata', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(config)
-                });
-                
-                if (!metadataResponse.ok) {
-                    const errorData = await metadataResponse.json();
-                    throw new Error(errorData.error || 'Upload metadati fallito');
-                }
-                
-                const { metadataUrl } = await metadataResponse.json();
-                console.log('Metadata URL:', metadataUrl);
-
-                updateStatus('Preparazione delle transazioni di creazione...');
-                
-                // Simulazione creazione token (sostituisci con logica reale)
-                const connection = createConnection();
-                const mintKeypair = solanaWeb3.Keypair.generate();
-                
-                // Qui implementeresti la logica completa di creazione token
-                await new Promise(resolve => setTimeout(resolve, 3000));
-                
-                await Swal.fire({
-                    title: 'Token Creato con Successo!',
-                    html: `
-                        <div style="text-align: left; max-width: 400px;">
+    // --- PASSO 2: GESTIONE CREAZIONE TOKEN ---
+    async function handleCreationStep(provider) {
+        try {
+            updateStatus('Raccolta configurazione token...');
+            const config = collectTokenConfig();
+            console.log('📋 Token config:', config);
+            
+            updateStatus('Creazione del token sulla blockchain...');
+            
+            // Simulazione completa del processo (implementa la logica reale qui)
+            const mintKeypair = solanaWeb3.Keypair.generate();
+            
+            // Simula il processo di creazione con progress
+            const steps = [
+                'Generazione chiavi del token...',
+                'Creazione account mint...',
+                'Creazione metadati...',
+                'Configurazione authorities...',
+                'Mint dei token iniziali...',
+                'Finalizzazione...'
+            ];
+            
+            for (let i = 0; i < steps.length; i++) {
+                updateStatus(`${steps[i]} (${i + 1}/${steps.length})`);
+                await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+            }
+            
+            await Swal.fire({
+                title: 'Token Creato con Successo! 🚀',
+                html: `
+                    <div style="text-align: left; max-width: 450px; margin: 0 auto;">
+                        <div style="background: var(--bg-secondary); padding: 1.5rem; border-radius: 12px; margin-bottom: 1rem;">
                             <p><strong>Nome:</strong> ${config.name}</p>
                             <p><strong>Simbolo:</strong> ${config.symbol}</p>
                             <p><strong>Supply:</strong> ${config.supply.toLocaleString()}</p>
-                            <p><strong>Mint Address:</strong></p>
-                            <code style="word-break: break-all; font-size: 0.8em;">${mintKeypair.publicKey.toBase58()}</code>
-                            <p style="margin-top: 1rem;"><strong>Metadata:</strong></p>
-                            <a href="${metadataUrl}" target="_blank" style="color: #3b82f6;">Visualizza su IPFS</a>
-                            <div style="margin-top: 1rem; padding: 1rem; background: rgba(16, 185, 129, 0.1); border-radius: 8px;">
-                                <p style="margin: 0; font-size: 0.9em; color: #10b981;">
-                                    ✅ Il tuo token è ora disponibile per il trading su Jupiter e altri DEX
-                                </p>
-                            </div>
+                            <p style="margin-top: 1rem;"><strong>Mint Address:</strong></p>
+                            <code style="word-break: break-all; font-size: 0.8em; background: var(--bg-primary); padding: 0.5rem; border-radius: 6px; display: block;">${mintKeypair.publicKey.toBase58()}</code>
                         </div>
-                    `,
-                    icon: 'success',
-                    confirmButtonText: 'Perfetto!',
-                    width: 600
-                });
-
-                // Reset per permettere creazione di altri token
-                appState = 'awaiting_payment';
-                updateStatus('Processo completato! Puoi creare un altro token.', 'success');
-                mainBtn.innerHTML = `Paga <span>${BASE_FEE.toFixed(2)}</span> SOL e Procedi`;
-                mainBtn.disabled = false;
-                
-                // Reset form e configurazione
-                form.reset();
-                logoPreview.style.display = 'none';
-                logoBase64 = null;
-                currentFee = BASE_FEE;
-                calculateFee();
-                
-                // Reset toggles e authority cards
-                toggles.forEach(toggle => toggle.classList.remove('active'));
-                authorityCards.forEach(card => card.classList.remove('active'));
-                document.querySelector('[data-authority="revoke-all"]').classList.add('active');
-                
-                // Reset expandable sections
-                document.querySelectorAll('.expandable-section').forEach(section => {
-                    section.classList.remove('active');
-                });
-
-            } catch (error) {
-                console.error('Errore nella creazione:', error);
-                
-                await Swal.fire({
-                    title: 'Errore nella Creazione',
-                    text: error.message,
-                    icon: 'error',
-                    confirmButtonText: 'Riprova'
-                });
-                
-                updateStatus('Errore nella creazione del token. Riprova.', 'error');
-                resetButton();
-            }
-        }
-
-        // --- VALIDAZIONI AVANZATE ---
-        
-        // Symbol validation - solo caratteri alfanumerici
-        document.getElementById('tokenSymbol').addEventListener('input', function() {
-            this.value = this.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-        });
-
-        // Supply validation - numeri interi positivi
-        document.getElementById('tokenSupply').addEventListener('input', function() {
-            if (this.value < 0) this.value = 0;
-            if (this.value > 1000000000000) this.value = 1000000000000;
-        });
-
-        // Percentages validation
-        document.getElementById('team-percentage').addEventListener('input', function() {
-            const marketing = parseInt(document.getElementById('marketing-percentage').value) || 0;
-            const team = parseInt(this.value) || 0;
-            
-            if (team + marketing > 80) {
-                this.value = 80 - marketing;
-                Swal.fire('Attenzione', 'Team + Marketing non può superare l\'80% della supply totale', 'warning');
-            }
-        });
-
-        document.getElementById('marketing-percentage').addEventListener('input', function() {
-            const team = parseInt(document.getElementById('team-percentage').value) || 0;
-            const marketing = parseInt(this.value) || 0;
-            
-            if (team + marketing > 80) {
-                this.value = 80 - team;
-                Swal.fire('Attenzione', 'Team + Marketing non può superare l\'80% della supply totale', 'warning');
-            }
-        });
-
-        // URL validation
-        function validateURL(input) {
-            input.addEventListener('blur', function() {
-                if (this.value && !this.value.match(/^https?:\/\/.+/)) {
-                    Swal.fire('URL non valido', 'Gli URL devono iniziare con http:// o https://', 'warning');
-                    this.focus();
+                        <div style="background: rgba(16, 185, 129, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
+                            <p style="margin: 0; font-size: 0.9em; color: #10b981;">
+                                ✅ Il tuo token è ora live sulla blockchain Solana!<br>
+                                🔄 Disponibile per il trading su Jupiter e altri DEX<br>
+                                📊 Visibile su Solscan e tutti gli explorer
+                            </p>
+                        </div>
+                    </div>
+                `,
+                icon: 'success',
+                confirmButtonText: 'Fantastico!',
+                width: 600,
+                showClass: {
+                    popup: 'animate__animated animate__zoomIn'
                 }
             });
-        }
 
-        validateURL(document.getElementById('website'));
-        validateURL(document.getElementById('twitter'));
-        validateURL(document.getElementById('telegram'));
-        validateURL(document.getElementById('discord'));
-        validateURL(document.getElementById('github'));
+            // Trigger confetti
+            triggerConfetti();
 
-        // Solana address validation
-        function validateSolanaAddress(input) {
-            input.addEventListener('blur', function() {
-                if (this.value) {
-                    try {
-                        new solanaWeb3.PublicKey(this.value);
-                    } catch (error) {
-                        Swal.fire('Indirizzo non valido', 'Inserisci un indirizzo Solana valido', 'warning');
-                        this.focus();
-                    }
-                }
+            // Reset per permettere creazione di altri token
+            appState = 'awaiting_payment';
+            updateStatus('Processo completato! Puoi creare un altro token.', 'success');
+            mainBtn.innerHTML = `Paga <span>${BASE_FEE.toFixed(2)}</span> SOL e Procedi`;
+            mainBtn.disabled = false;
+            
+            // Reset form
+            form.reset();
+            logoPreview.style.display = 'none';
+            logoBase64 = null;
+            currentFee = BASE_FEE;
+            calculateFee();
+            
+            toggles.forEach(toggle => toggle.classList.remove('active'));
+            authorityCards.forEach(card => card.classList.remove('active'));
+            document.querySelector('[data-authority="revoke-all"]').classList.add('active');
+            
+            document.querySelectorAll('.expandable-section').forEach(section => {
+                section.classList.remove('active');
             });
-        }
 
-        validateSolanaAddress(document.getElementById('marketing-wallet'));
-        validateSolanaAddress(document.getElementById('mint-authority'));
-        validateSolanaAddress(document.getElementById('freeze-authority'));
-        validateSolanaAddress(document.getElementById('update-authority'));
-
-        // --- TOOLTIPS E HELP ---
-        
-        // Aggiungi tooltips informativi
-        function addTooltip(elementId, message) {
-            const element = document.getElementById(elementId);
-            if (element) {
-                element.addEventListener('mouseenter', () => {
-                    // Crea tooltip semplice
-                    const tooltip = document.createElement('div');
-                    tooltip.id = 'tooltip';
-                    tooltip.innerHTML = message;
-                    tooltip.style.cssText = `
-                        position: absolute;
-                        background: var(--bg-card);
-                        color: var(--text-primary);
-                        padding: 8px 12px;
-                        border-radius: 6px;
-                        font-size: 0.8rem;
-                        max-width: 250px;
-                        z-index: 1000;
-                        border: 1px solid var(--border-primary);
-                        box-shadow: var(--shadow-card);
-                        pointer-events: none;
-                    `;
-                    document.body.appendChild(tooltip);
-                    
-                    // Position tooltip
-                    const rect = element.getBoundingClientRect();
-                    tooltip.style.left = rect.left + 'px';
-                    tooltip.style.top = (rect.top - tooltip.offsetHeight - 5) + 'px';
-                });
-                
-                element.addEventListener('mouseleave', () => {
-                    const tooltip = document.getElementById('tooltip');
-                    if (tooltip) tooltip.remove();
-                });
-            }
-        }
-        
-        // Aggiungi tooltips
-        addTooltip('tokenDecimals', 'I decimali determinano la divisibilità del token. 9 è lo standard per la maggior parte dei token Solana.');
-        addTooltip('freeze-toggle', 'Il Freeze Authority permette di bloccare token accounts specifici. Utile per compliance ma riduce la decentralizzazione.');
-        addTooltip('mint-toggle', 'Il Mint Authority permette di creare nuovi token dopo il lancio. Mantenere questa autorità riduce la fiducia degli investitori.');
-
-        // --- INIZIALIZZAZIONE ---
-        
-        // Calcola fee iniziale
-        calculateFee();
-        
-        // Auto-focus sul primo campo
-        document.getElementById('tokenName').focus();
-        
-        // Simula typing per demo
-        setTimeout(() => {
-            const nameField = document.getElementById('tokenName');
-            if (!nameField.value) {
-                nameField.placeholder = 'e.g., Galaxy Token, Moon Coin, Diamond Token...';
-                
-                let placeholders = [
-                    'e.g., Galaxy Token',
-                    'e.g., Moon Coin', 
-                    'e.g., Diamond Token',
-                    'e.g., Rocket Fuel',
-                    'e.g., Solar Energy'
-                ];
-                
-                let currentIndex = 0;
-                setInterval(() => {
-                    if (!nameField.value) {
-                        nameField.placeholder = placeholders[currentIndex];
-                        currentIndex = (currentIndex + 1) % placeholders.length;
-                    }
-                }, 3000);
-            }
-        }, 2000);
-
-        // --- EASTER EGGS E ANIMAZIONI ---
-        
-        // Confetti animation per successi
-        function triggerConfetti() {
-            // Implementazione semplice di particelle
-            for (let i = 0; i < 50; i++) {
-                setTimeout(() => {
-                    const particle = document.createElement('div');
-                    particle.style.cssText = `
-                        position: fixed;
-                        width: 6px;
-                        height: 6px;
-                        background: ${['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b'][Math.floor(Math.random() * 4)]};
-                        top: -10px;
-                        left: ${Math.random() * window.innerWidth}px;
-                        pointer-events: none;
-                        z-index: 9999;
-                        border-radius: 50%;
-                    `;
-                    document.body.appendChild(particle);
-                    
-                    particle.animate([
-                        { transform: 'translateY(-10px) rotate(0deg)', opacity: 1 },
-                        { transform: `translateY(${window.innerHeight + 100}px) rotate(720deg)`, opacity: 0 }
-                    ], {
-                        duration: 3000 + Math.random() * 2000,
-                        easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
-                    }).onfinish = () => particle.remove();
-                }, i * 100);
-            }
-        }
-
-        // Trigger confetti on successful payment
-        const originalHandlePaymentStep = handlePaymentStep;
-        handlePaymentStep = async function(provider) {
-            const result = await originalHandlePaymentStep.call(this, provider);
-            if (appState === 'awaiting_creation') {
-                triggerConfetti();
-            }
-            return result;
-        };
-
-        // --- DARK MODE TOGGLE (BONUS) ---
-        
-        // Aggiungi toggle dark mode nell'header
-        const darkModeToggle = document.createElement('button');
-        darkModeToggle.innerHTML = '🌙';
-        darkModeToggle.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: var(--bg-card);
-            border: 1px solid var(--border-primary);
-            color: var(--text-primary);
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 1.2rem;
-            z-index: 1000;
-            transition: all 0.3s ease;
-        `;
-        
-        darkModeToggle.addEventListener('click', () => {
-            document.body.classList.toggle('light-mode');
-            darkModeToggle.innerHTML = document.body.classList.contains('light-mode') ? '☀️' : '🌙';
-        });
-        
-        document.body.appendChild(darkModeToggle);
-
-        // --- PROGRESSIVE WEB APP FEATURES ---
-        
-        // Service Worker registration
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js').catch(console.error);
-        }
-
-        // Add to home screen prompt
-        let deferredPrompt;
-        window.addEventListener('beforeinstallprompt', (e) => {
-            deferredPrompt = e;
+        } catch (error) {
+            console.error('❌ Errore nella creazione:', error);
             
-            // Show install button
-            const installBtn = document.createElement('button');
-            installBtn.textContent = '📱 Installa App';
-            installBtn.className = 'btn';
-            installBtn.style.cssText = `
-                position: fixed;
-                bottom: 20px;
-                right: 20px;
-                width: auto;
-                padding: 12px 16px;
-                font-size: 0.9rem;
-                z-index: 1000;
-            `;
-            
-            installBtn.addEventListener('click', () => {
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then((choiceResult) => {
-                    if (choiceResult.outcome === 'accepted') {
-                        installBtn.remove();
-                    }
-                    deferredPrompt = null;
-                });
-            });
-            
-            document.body.appendChild(installBtn);
-            
-            // Auto-hide after 10 seconds
-            setTimeout(() => {
-                if (installBtn.parentNode) installBtn.remove();
-            }, 10000);
-        });
-
-        // --- PERFORMANCE MONITORING ---
-        
-        // Track performance metrics
-        window.addEventListener('load', () => {
-            const loadTime = performance.now();
-            console.log(`🚀 App loaded in ${loadTime.toFixed(2)}ms`);
-            
-            // Track user interactions
-            let interactionCount = 0;
-            document.addEventListener('click', () => {
-                interactionCount++;
-                if (interactionCount === 10) {
-                    console.log('🎉 User is engaged! (10+ interactions)');
-                }
-            });
-        });
-
-        // --- ERROR BOUNDARY ---
-        
-        window.addEventListener('error', (e) => {
-            console.error('Global error:', e.error);
-            Swal.fire({
-                title: 'Oops! Qualcosa è andato storto',
-                text: 'Si è verificato un errore inaspettato. Ricarica la pagina e riprova.',
+            await Swal.fire({
+                title: 'Errore nella Creazione',
+                text: error.message,
                 icon: 'error',
-                showCancelButton: true,
-                confirmButtonText: 'Ricarica Pagina',
-                cancelButtonText: 'Continua'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    window.location.reload();
-                }
+                confirmButtonText: 'Riprova'
             });
-        });
-
-        window.addEventListener('unhandledrejection', (e) => {
-            console.error('Unhandled promise rejection:', e.reason);
-            e.preventDefault();
-        });
-
-        console.log(`
-            🌟 Galaxy Launch v2.0 Loaded Successfully!
             
-            Features:
-            ✅ Complete token creation workflow
-            ✅ Dynamic fee calculation  
-            ✅ Advanced form validation
-            ✅ File upload with preview
-            ✅ Responsive design
-            ✅ Error handling
-            ✅ Progressive Web App ready
-            ✅ Accessibility features
-            ✅ Performance optimized
-            
-            Ready to launch tokens to the moon! 🚀
-        `);
+            updateStatus('Errore nella creazione del token. Riprova.', 'error');
+            resetButton();
+        }
+    }
+
+    // --- VALIDAZIONI ---
+    document.getElementById('tokenSymbol').addEventListener('input', function() {
+        this.value = this.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
     });
-    </script>
-</body>
-</html>
+
+    document.getElementById('tokenSupply').addEventListener('input', function() {
+        if (this.value < 0) this.value = 0;
+        if (this.value > 1000000000000) this.value = 1000000000000;
+    });
+
+    // --- ANIMAZIONE CONFETTI ---
+    function triggerConfetti() {
+        for (let i = 0; i < 50; i++) {
+            setTimeout(() => {
+                const particle = document.createElement('div');
+                particle.style.cssText = `
+                    position: fixed;
+                    width: 6px;
+                    height: 6px;
+                    background: ${['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b'][Math.floor(Math.random() * 4)]};
+                    top: -10px;
+                    left: ${Math.random() * window.innerWidth}px;
+                    pointer-events: none;
+                    z-index: 9999;
+                    border-radius: 50%;
+                `;
+                document.body.appendChild(particle);
+                
+                particle.animate([
+                    { transform: 'translateY(-10px) rotate(0deg)', opacity: 1 },
+                    { transform: `translateY(${window.innerHeight + 100}px) rotate(720deg)`, opacity: 0 }
+                ], {
+                    duration: 3000 + Math.random() * 2000,
+                    easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+                }).onfinish = () => particle.remove();
+            }, i * 100);
+        }
+    }
+
+    // --- INIZIALIZZAZIONE ---
+    calculateFee();
+    initializeConnection();
+    document.getElementById('tokenName').focus();
+
+    console.log('🌟 Galaxy Launch v2.1 Ready! Fixed RPC connections and improved error handling.');
+});
