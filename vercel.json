@@ -1,13 +1,1 @@
-{
-  "functions": {
-    "api/upload-metadata.js": {
-      "maxDuration": 30
-    }
-  },
-  "rewrites": [
-    {
-      "source": "/",
-      "destination": "/create.html"
-    }
-  ]
-}
+
