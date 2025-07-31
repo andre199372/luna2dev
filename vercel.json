@@ -1,6 +1,6 @@
 {
   "functions": {
-    "api/create-token.js": {
+    "api/upload-metadata.js": {
       "maxDuration": 30
     }
   },
