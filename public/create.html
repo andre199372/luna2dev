@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galaxy Launch - Create Solana Token</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    <script src="https://unpkg.com/@solana/spl-token@latest/lib/index.iife.min.js"></script>
+    <script src="https://unpkg.com/@metaplex-foundation/js@latest/dist/mpl-token-metadata.iife.min.js"></script>
+    <style>
+        /* INCOLLA QUI TUTTO IL TUO CSS ORIGINALE. LO OMETTO PER BREVITÀ */
+        body { font-family: 'Inter', sans-serif; background-color: #0f0f23; color: #f8fafc; /* ... etc */ }
+    </style>
+</head>
+<body>
+    <header>
+        </header>
+    
+    <main>
+        <div class="container">
+            <form class="form" id="token-form">
+                <div class="form-group">
+                    <label for="tokenName">Token Name</label>
+                    <input required type="text" id="tokenName" placeholder="e.g., My Amazing Token">
+                </div>
+                <div id="status-display" style="text-align:center; margin-bottom: 1rem; color: #cbd5e1;">Passo 1: Completa il form e paga la commissione per procedere.</div>
+                <button type="submit" class="btn" id="main-action-btn">Paga 0.3 SOL e Procedi</button>
+            </form>
+        </div>
+    </main>
+
+    <footer>
+        </footer>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- CONFIGURAZIONE ---
+        const FEE_SOL = 0.3;
+        const FEE_RECIPIENT = new solanaWeb3.PublicKey('INCOLLA_QUI_IL_TUO_INDIRIZZO_WALLET'); // <-- !!! MODIFICA QUESTO !!!
+
+        // Riferimenti DOM
+        const form = document.getElementById('token-form');
+        const mainBtn = document.getElementById('main-action-btn');
+        const statusDisplay = document.getElementById('status-display');
+        
+        // Stato dell'applicazione
+        let appState = 'awaiting_payment'; // Stati: awaiting_payment -> awaiting_creation
+        let wallet = { connected: false, publicKey: null };
+        let tokenDetailsCache = {};
+
+        // --- GESTIONE WALLET (semplificata, aggiungi la tua logica di connessione) ---
+        async function connectWallet() {
+            const provider = window.phantom?.solana;
+            if (provider?.isPhantom) {
+                try {
+                    const resp = await provider.connect();
+                    wallet.publicKey = resp.publicKey;
+                    wallet.connected = true;
+                    // Aggiorna la UI per mostrare che il wallet è connesso
+                    console.log('Wallet connesso:', wallet.publicKey.toBase58());
+                    return provider;
+                } catch (err) {
+                    Swal.fire('Errore', 'Connessione al wallet rifiutata.', 'error');
+                    return null;
+                }
+            }
+            Swal.fire('Errore', 'Phantom wallet non trovato.', 'error');
+            return null;
+        }
+
+        // --- GESTORE CLICK PRINCIPALE ---
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (!event.isTrusted) return;
+
+            const provider = await connectWallet();
+            if (!provider) return;
+
+            mainBtn.disabled = true;
+            mainBtn.innerHTML = '<div class="loading-spinner"></div> In corso...';
+
+            // Logica basata sullo stato attuale
+            if (appState === 'awaiting_payment') {
+                await handlePaymentStep(provider);
+            } else if (appState === 'awaiting_creation') {
+                await handleCreationStep(provider);
+            }
+        });
+
+        // --- PASSO 1: GESTIONE PAGAMENTO ---
+        async function handlePaymentStep(provider) {
+            try {
+                // Raccogli i dati per validazione
+                const tokenName = document.getElementById('tokenName').value.trim();
+                if (!tokenName) throw new Error('Il nome del token è obbligatorio.');
+                
+                statusDisplay.textContent = 'Prepara la transazione di pagamento...';
+                
+                // 1. Costruisci la transazione di pagamento
+                const transaction = new solanaWeb3.Transaction().add(
+                    solanaWeb3.SystemProgram.transfer({
+                        fromPubkey: wallet.publicKey,
+                        toPubkey: FEE_RECIPIENT,
+                        lamports: FEE_SOL * solanaWeb3.LAMPORTS_PER_SOL,
+                    })
+                );
+
+                // 2. Firma e invia
+                const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'), 'confirmed');
+                transaction.feePayer = wallet.publicKey;
+                transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+                
+                const { signature } = await provider.signAndSendTransaction(transaction);
+                statusDisplay.textContent = 'Verifica del pagamento sulla blockchain... (può richiedere un minuto)';
+                
+                // 3. Verifica il pagamento tramite backend
+                const verificationResponse = await fetch('/api/verify-payment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ signature, payer: wallet.publicKey.toBase58() })
+                });
+
+                if (!verificationResponse.ok) {
+                    const err = await verificationResponse.json();
+                    throw new Error(`Verifica fallita: ${err.error}`);
+                }
+                
+                // 4. Se la verifica ha successo, passa allo stato successivo
+                await Swal.fire('Pagamento Confermato!', 'Ora puoi procedere con la creazione del token.', 'success');
+                
+                appState = 'awaiting_creation';
+                statusDisplay.textContent = 'Passo 2: Pagamento ricevuto! Clicca per creare il tuo token.';
+                mainBtn.textContent = 'Crea il mio Token';
+                mainBtn.disabled = false;
+
+            } catch (error) {
+                Swal.fire('Errore nel Pagamento', error.message, 'error');
+                mainBtn.disabled = false;
+                mainBtn.textContent = `Paga ${FEE_SOL} SOL e Procedi`;
+                statusDisplay.textContent = 'Passo 1: Completa il form e paga la commissione per procedere.';
+            }
+        }
+
+        // --- PASSO 2: GESTIONE CREAZIONE TOKEN ---
+        async function handleCreationStep(provider) {
+             try {
+                statusDisplay.textContent = 'Caricamento dei metadati su IPFS...';
+                
+                // Dati del token (da implementare la raccolta dal form)
+                const tokenDetails = {
+                    name: document.getElementById('tokenName').value.trim(),
+                    // ... raccogli gli altri dati
+                };
+                
+                // 1. Upload metadati
+                const metadataResponse = await fetch('/api/upload-metadata', { /* ... */ });
+                if (!metadataResponse.ok) throw new Error('Upload metadati fallito.');
+                const { metadataUrl } = await metadataResponse.json();
+
+                statusDisplay.textContent = 'Prepara la transazione di creazione...';
+                
+                // 2. Costruisci la transazione di creazione (codice dal precedente esempio "gratuito")
+                const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'), 'confirmed');
+                const payer = wallet.publicKey;
+                const mintKeypair = solanaWeb3.Keypair.generate();
+                // ... (tutto il resto della logica di costruzione istruzioni: createAccount, initializeMint, metadata, mintTo, etc.)
+                // ... IMPORTANTE: questa transazione NON deve contenere il transfer della fee.
+                const transaction = new solanaWeb3.Transaction().add(/* ... istruzioni ... */);
+                transaction.partialSign(mintKeypair);
+
+                // 3. Firma e invia la seconda transazione
+                statusDisplay.textContent = 'Richiesta di firma per la creazione del token...';
+                const { signature } = await provider.signAndSendTransaction(transaction);
+                await connection.confirmTransaction(signature, 'confirmed');
+
+                // 4. Successo finale
+                await Swal.fire('Token Creato con Successo!', `Mint Address: ${mintKeypair.publicKey.toBase58()}`, 'success');
+
+                // Reset stato
+                appState = 'awaiting_payment';
+                statusDisplay.textContent = 'Processo completato! Puoi creare un altro token.';
+                mainBtn.textContent = `Paga ${FEE_SOL} SOL e Procedi`;
+                mainBtn.disabled = false;
+
+            } catch (error) {
+                Swal.fire('Errore nella Creazione', error.message, 'error');
+                mainBtn.disabled = false;
+                mainBtn.textContent = 'Crea il mio Token';
+            }
+        }
+    });
+    </script>
+</body>
+</html>
