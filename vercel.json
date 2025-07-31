@@ -1,1 +1,12 @@
-
+{
+  "rewrites": [
+    {
+      "source": "/api/upload-metadata",
+      "destination": "/api/upload-metadata.js"
+    },
+    {
+      "source": "/api/verify-payment",
+      "destination": "/api/verify-payment.js"
+    }
+  ]
+}
