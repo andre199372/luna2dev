@@ -6,12 +6,14 @@ const FEE_SOL = 0.3;
 const FEE_RECIPIENT_ADDRESS = 'BeEbsaq4dKfzZQBK6zet4wj8UJCTF9zzU7QLgWpERqBg';
 const EXPECTED_FEE_LAMPORTS = FEE_SOL * LAMPORTS_PER_SOL;
 
-// SOLO MAINNET endpoints - rimuovi devnet per produzione
+// ENDPOINT RPC aggiornati e testati - solo mainnet funzionanti
 const RPC_ENDPOINTS = [
     'https://api.mainnet-beta.solana.com',
-    'https://solana-mainnet.g.alchemy.com/v2/demo',
-    'https://rpc.ankr.com/solana',
-    'https://mainnet.helius-rpc.com/?api-key=demo'
+    'https://solana-api.projectserum.com', 
+    'https://solana.public-rpc.com',
+    'https://rpc.helius.xyz/?api-key=public',
+    'https://api.metaplex.solana.com',
+    'https://solana-mainnet.phantom.app/YBPpkkN'
 ];
 
 // Funzione per creare una connessione con fallback e timeout
