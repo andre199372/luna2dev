@@ -2,7 +2,7 @@
   "name": "luna-launch-token-creator",
   "version": "1.0.0",
   "description": "Solana Token Creator for Vercel deployment",
-  "main": "api/create-token.js",
+  "main": "api/upload-metadata.js",
   "scripts": {
     "dev": "vercel dev",
     "build": "echo 'Build completed successfully'",
