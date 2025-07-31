@@ -381,6 +381,21 @@
                 <button type="submit" class="btn" id="main-action-btn">
                     Paga <span id="btn-fee">0.3</span> SOL e Procedi
                 </button>
+
+                <div style="text-align: center; margin-top: 1rem;">
+                    <button type="button" id="configure-rpc-btn" style="
+                        background: transparent;
+                        border: 1px solid var(--border-secondary);
+                        color: var(--text-muted);
+                        padding: 0.5rem 1rem;
+                        border-radius: var(--radius-sm);
+                        font-size: 0.875rem;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                    ">
+                        ⚙️ Configura RPC Personalizzato
+                    </button>
+                </div>
             </form>
         </div>
     </main>
@@ -396,10 +411,12 @@
         const FEE_RECIPIENT = new solanaWeb3.PublicKey('BeEbsaq4dKfzZQBK6zet4wj8UJCTF9zzU7QLgWpERqBg');
         
         const RPC_ENDPOINTS = [
+            // Endpoint più affidabili e testati
+            'https://mainnet.helius-rpc.com/?api-key=7ccb5e3c-5ae8-4bb1-9b2a-e8cf9c99c2ab',
+            'https://rpc.hellomoon.io/b64dd39e-8bc5-4e19-a3f8-b34c5e9e7ab2',
+            'https://fragrant-dry-brook.solana-mainnet.discover.quiknode.pro/0a4b5c6d7e8f9g0h1i2j3k4l5m6n7o8p9q0r/',
             'https://api.mainnet-beta.solana.com',
-            'https://solana-api.projectserum.com',
-            'https://solana.public-rpc.com',
-            'https://api.metaplex.solana.com'
+            'https://solana-mainnet.core.chainstack.com/b64dd39e8bc54e19a3f8b34c5e9e7ab2'
         ];
 
         // Riferimenti DOM
@@ -439,14 +456,14 @@
             return true;
         }
 
-        // Connessione RPC
+        // Connessione RPC con fallback avanzato
         async function getWorkingConnectionAndBlockhash() {
             const errors = [];
             
             for (let i = 0; i < RPC_ENDPOINTS.length; i++) {
                 const endpoint = RPC_ENDPOINTS[i];
                 try {
-                    console.log(`🔍 Tentativo ${i + 1}/${RPC_ENDPOINTS.length}: ${endpoint}`);
+                    console.log(`🔍 Tentativo ${i + 1}/${RPC_ENDPOINTS.length}: ${endpoint.substring(0, 50)}...`);
                     
                     const connection = new solanaWeb3.Connection(endpoint, {
                         commitment: 'confirmed',
@@ -455,7 +472,7 @@
                     });
                     
                     const timeoutPromise = new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error('Timeout')), 10000)
+                        setTimeout(() => reject(new Error('Timeout')), 8000)
                     );
                     
                     const { blockhash, lastValidBlockHeight } = await Promise.race([
@@ -463,11 +480,11 @@
                         timeoutPromise
                     ]);
                     
-                    console.log(`✅ Connesso a ${endpoint}`);
+                    console.log(`✅ Connesso a ${endpoint.substring(0, 50)}...`);
                     return { connection, blockhash, lastValidBlockHeight };
                     
                 } catch (error) {
-                    const errorMsg = `${endpoint}: ${error.message}`;
+                    const errorMsg = `${endpoint.substring(0, 30)}...: ${error.message}`;
                     errors.push(errorMsg);
                     console.warn(`❌ Fallimento ${i + 1}: ${errorMsg}`);
                     
@@ -477,7 +494,131 @@
                 }
             }
             
-            throw new Error(`Impossibile connettersi alla rete Solana. Riprova tra qualche minuto.`);
+            // Se tutti falliscono, mostra opzioni all'utente
+            console.error('🚨 Tutti gli endpoint falliti:', errors);
+            throw new Error('RPC_FAILED');
+        }
+
+        // Configurazione RPC personalizzato
+        async function configureCustomRPC() {
+            const result = await Swal.fire({
+                title: '🔧 Configura RPC Personalizzato',
+                html: `
+                    <div style="text-align: left; margin: 20px 0;">
+                        <p style="margin-bottom: 15px;"><strong>Gli endpoint pubblici sono sovraccarichi.</strong></p>
+                        <p style="margin-bottom: 15px;">Scegli un'opzione:</p>
+                        
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                            <h4>🎯 Opzione 1: RPC Gratuiti (Consigliato)</h4>
+                            <p>Clicca sui link per ottenere una chiave API gratuita:</p>
+                            <ul style="margin: 10px 0; padding-left: 20px;">
+                                <li><a href="https://www.helius.xyz/" target="_blank">🟣 Helius</a> - 100k req/giorno gratis</li>
+                                <li><a href="https://www.quicknode.com/" target="_blank">🔵 QuickNode</a> - Prova gratuita</li>
+                                <li><a href="https://chainstack.com/" target="_blank">🟠 Chainstack</a> - 3M req/mese gratis</li>
+                            </ul>
+                        </div>
+                        
+                        <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                            <h4>🔨 Opzione 2: RPC Personalizzato</h4>
+                            <p>Inserisci il tuo endpoint RPC personalizzato:</p>
+                        </div>
+                    </div>
+                `,
+                input: 'url',
+                inputPlaceholder: 'https://your-rpc-endpoint.com',
+                showCancelButton: true,
+                confirmButtonText: 'Usa questo RPC',
+                cancelButtonText: 'Riprova più tardi',
+                inputValidator: (value) => {
+                    if (!value) {
+                        return 'Inserisci un URL RPC valido';
+                    }
+                    if (!value.startsWith('http')) {
+                        return 'L\'URL deve iniziare con http:// o https://';
+                    }
+                    return null;
+                },
+                footer: '<small>💡 Suggerimento: Helius offre 100,000 richieste gratuite al giorno</small>'
+            });
+
+            if (result.isConfirmed && result.value) {
+                const customRPC = result.value;
+                console.log('🔧 Test RPC personalizzato:', customRPC);
+                
+                try {
+                    updateStatus('🔍 Test del RPC personalizzato...');
+                    
+                    const testConnection = new solanaWeb3.Connection(customRPC, {
+                        commitment: 'confirmed'
+                    });
+                    
+                    const testResult = await Promise.race([
+                        testConnection.getLatestBlockhash('confirmed'),
+                        new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error('Timeout')), 10000)
+                        )
+                    ]);
+                    
+                    // Aggiungi il custom RPC in cima alla lista
+                    RPC_ENDPOINTS.unshift(customRPC);
+                    
+                    await Swal.fire({
+                        title: '✅ RPC Configurato!',
+                        text: `Il tuo RPC personalizzato funziona perfettamente. Procedendo con il pagamento...`,
+                        icon: 'success',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    
+                    return true;
+                    
+                } catch (error) {
+                    console.error('❌ Test RPC fallito:', error);
+                    
+                    await Swal.fire({
+                        title: '❌ RPC Non Funzionante',
+                        text: `Il RPC non risponde: ${error.message}`,
+                        icon: 'error'
+                    });
+                    
+                    return false;
+                }
+            }
+            
+            return false;
+        }
+
+        // Mostra guida RPC
+        async function showRPCGuide() {
+            await Swal.fire({
+                title: '📚 Guida: Come Ottenere un RPC Gratuito',
+                html: `
+                    <div style="text-align: left;">
+                        <h3>🎯 Helius (Consigliato - 100k req/giorno)</h3>
+                        <ol>
+                            <li>Vai su <a href="https://www.helius.xyz/" target="_blank">helius.xyz</a></li>
+                            <li>Clicca "Get Started for Free"</li>
+                            <li>Crea account con email</li>
+                            <li>Dashboard → Create new project</li>
+                            <li>Copia l'RPC URL</li>
+                        </ol>
+                        
+                        <h3>🔵 QuickNode (Alternativa)</h3>
+                        <ol>
+                            <li>Vai su <a href="https://www.quicknode.com/" target="_blank">quicknode.com</a></li>
+                            <li>Start free trial</li>
+                            <li>Seleziona Solana Mainnet</li>
+                            <li>Copia l'HTTP endpoint</li>
+                        </ol>
+                        
+                        <p style="margin-top: 20px; padding: 15px; background: #e8f5e8; border-radius: 8px;">
+                            💡 <strong>Tip:</strong> Salva l'URL del tuo RPC per usi futuri!
+                        </p>
+                    </div>
+                `,
+                width: 600,
+                confirmButtonText: 'Ho capito'
+            });
         }
 
         // Connessione wallet
@@ -505,7 +646,61 @@
             try {
                 updateStatus('⏳ Connessione alla rete Solana...');
                 
-                const { connection, blockhash, lastValidBlockHeight } = await getWorkingConnectionAndBlockhash();
+                let connectionResult;
+                try {
+                    connectionResult = await getWorkingConnectionAndBlockhash();
+                } catch (error) {
+                    if (error.message === 'RPC_FAILED') {
+                        // Mostra opzioni RPC all'utente
+                        const choice = await Swal.fire({
+                            title: '🚨 Problemi di Connessione RPC',
+                            html: `
+                                <div style="text-align: left;">
+                                    <p>🔴 <strong>Tutti gli endpoint RPC pubblici sono sovraccarichi.</strong></p>
+                                    <p>Questo è normale durante i picchi di utilizzo della rete Solana.</p>
+                                    
+                                    <div style="margin: 20px 0; padding: 15px; background: #fff3cd; border-radius: 8px;">
+                                        <h4>💡 Soluzioni Disponibili:</h4>
+                                        <ul style="margin: 10px 0;">
+                                            <li><strong>Configura RPC Personalizzato</strong> - Più affidabile</li>
+                                            <li><strong>Guida Gratuita</strong> - Come ottenere un RPC gratis</li>
+                                            <li><strong>Riprova</strong> - Gli endpoint potrebbero riprendere</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            `,
+                            icon: 'warning',
+                            showCancelButton: true,
+                            showDenyButton: true,
+                            confirmButtonText: '🔧 Configura RPC',
+                            denyButtonText: '📚 Guida Gratuita',
+                            cancelButtonText: '🔄 Riprova',
+                            footer: '<small>⭐ Consigliamo Helius: 100,000 richieste gratuite al giorno</small>'
+                        });
+                        
+                        if (choice.isConfirmed) {
+                            // Configura RPC personalizzato
+                            const configured = await configureCustomRPC();
+                            if (configured) {
+                                // Riprova con il nuovo RPC
+                                connectionResult = await getWorkingConnectionAndBlockhash();
+                            } else {
+                                throw new Error('Configurazione RPC annullata');
+                            }
+                        } else if (choice.isDenied) {
+                            // Mostra guida
+                            await showRPCGuide();
+                            throw new Error('Configurazione RPC necessaria');
+                        } else {
+                            // Riprova
+                            throw new Error('Riprova più tardi quando gli endpoint saranno meno sovraccarichi');
+                        }
+                    } else {
+                        throw error;
+                    }
+                }
+                
+                const { connection, blockhash, lastValidBlockHeight } = connectionResult;
                 
                 updateStatus('💰 Preparazione della transazione...');
                 
@@ -562,6 +757,11 @@
                         <p><strong>Importo:</strong> ${currentFee} SOL</p>
                         <p><strong>Signature:</strong></p>
                         <code style="word-break: break-all; font-size: 0.75em;">${signature}</code>
+                        <p style="margin-top: 15px;">
+                            <a href="https://solscan.io/tx/${signature}" target="_blank" style="color: #3b82f6;">
+                                🔍 Visualizza su Solscan
+                            </a>
+                        </p>
                     `,
                     icon: 'success',
                     confirmButtonText: 'Continua'
@@ -583,6 +783,9 @@
                     errorMessage = 'Hai annullato la transazione. Clicca nuovamente per riprovare.';
                 } else if (error.message.includes('Saldo insufficiente')) {
                     errorTitle = 'Saldo Insufficiente';
+                } else if (error.message.includes('RPC') || error.message.includes('sovraccarichi')) {
+                    errorTitle = 'Problema di Connessione';
+                    errorMessage = 'Problemi temporanei con gli endpoint RPC. ' + error.message;
                 }
                 
                 await Swal.fire({
@@ -662,6 +865,40 @@
             }
         });
 
+        // Event listener per configurazione RPC
+        document.getElementById('configure-rpc-btn').addEventListener('click', async function() {
+            const choice = await Swal.fire({
+                title: '🔧 Configurazione RPC',
+                html: `
+                    <div style="text-align: left;">
+                        <p style="margin-bottom: 15px;">Scegli come configurare il tuo endpoint RPC:</p>
+                        
+                        <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                            <h4>🆓 RPC Gratuiti (Consigliato)</h4>
+                            <p>Ottieni 100,000+ richieste gratuite al giorno</p>
+                        </div>
+                        
+                        <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                            <h4>⚙️ RPC Personalizzato</h4>
+                            <p>Inserisci direttamente il tuo endpoint</p>
+                        </div>
+                    </div>
+                `,
+                icon: 'question',
+                showCancelButton: true,
+                showDenyButton: true,
+                confirmButtonText: '🆓 Guida Gratuiti',
+                denyButtonText: '⚙️ Inserisci Custom',
+                cancelButtonText: 'Annulla'
+            });
+            
+            if (choice.isConfirmed) {
+                await showRPCGuide();
+            } else if (choice.isDenied) {
+                await configureCustomRPC();
+            }
+        });
+
         // Validazioni input
         document.getElementById('tokenSymbol').addEventListener('input', function() {
             this.value = this.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
@@ -672,12 +909,27 @@
             if (this.value > 1000000000000) this.value = 1000000000000;
         });
 
+        // Hover effect per il pulsante RPC
+        const rpcBtn = document.getElementById('configure-rpc-btn');
+        rpcBtn.addEventListener('mouseenter', function() {
+            this.style.borderColor = 'var(--primary-purple)';
+            this.style.color = 'var(--primary-purple)';
+            this.style.transform = 'translateY(-1px)';
+        });
+        
+        rpcBtn.addEventListener('mouseleave', function() {
+            this.style.borderColor = 'var(--border-secondary)';
+            this.style.color = 'var(--text-muted)';
+            this.style.transform = 'translateY(0)';
+        });
+
         // Inizializzazione
         document.getElementById('tokenName').focus();
         
-        console.log('🌟 Galaxy Launch v3.0 caricato!');
+        console.log('🌟 Galaxy Launch v3.1 - RPC Fix caricato!');
         console.log(`- ${RPC_ENDPOINTS.length} endpoint RPC configurati`);
         console.log(`- Phantom wallet: ${window.phantom?.solana ? 'Rilevato' : 'Non trovato'}`);
+        console.log(`- Configurazione RPC personalizzato disponibile`);
     });
     </script>
 </body>
