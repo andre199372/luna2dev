@@ -1,29 +1,56 @@
-// /api/verify-payment.js
+// api/verify-payment.js  
 const { Connection, PublicKey, LAMPORTS_PER_SOL } = require('@solana/web3.js');
 
-// --- CONFIGURAZIONE ---
 const FEE_SOL = 0.3;
 const FEE_RECIPIENT_ADDRESS = 'BeEbsaq4dKfzZQBK6zet4wj8UJCTF9zzU7QLgWpERqBg';
 const EXPECTED_FEE_LAMPORTS = FEE_SOL * LAMPORTS_PER_SOL;
 
-// ENDPOINT RPC aggiornati e testati - solo mainnet funzionanti
+// Enhanced RPC endpoints with fallbacks
 const RPC_ENDPOINTS = [
     'https://api.mainnet-beta.solana.com',
-    'https://solana-api.projectserum.com', 
+    'https://solana-api.projectserum.com',
     'https://solana.public-rpc.com',
-    'https://rpc.helius.xyz/?api-key=public',
+    process.env.ALCHEMY_API_KEY ? 
+        `https://solana-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}` : 
+        'https://solana-mainnet.g.alchemy.com/v2/demo',
+    process.env.HELIUS_API_KEY ? 
+        `https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}` : 
+        'https://rpc.helius.xyz/?api-key=public',
     'https://api.metaplex.solana.com',
-    'https://solana-mainnet.phantom.app/YBPpkkN'
-];
+    process.env.QUICKNODE_ENDPOINT
+].filter(Boolean);
 
-// Funzione per creare una connessione con fallback e timeout
+// Rate limiting
+const verificationAttempts = new Map();
+
+function checkVerificationRateLimit(ip) {
+    const now = Date.now();
+    const windowMs = 300000; // 5 minutes
+    const maxAttempts = 20;
+    
+    if (!verificationAttempts.has(ip)) {
+        verificationAttempts.set(ip, []);
+    }
+    
+    const attempts = verificationAttempts.get(ip);
+    const validAttempts = attempts.filter(time => now - time < windowMs);
+    
+    if (validAttempts.length >= maxAttempts) {
+        return false;
+    }
+    
+    validAttempts.push(now);
+    verificationAttempts.set(ip, validAttempts);
+    return true;
+}
+
 async function createConnectionWithFallback() {
     const errors = [];
     
     for (let i = 0; i < RPC_ENDPOINTS.length; i++) {
         const endpoint = RPC_ENDPOINTS[i];
         try {
-            console.log(`[API] Tentativo ${i + 1}/${RPC_ENDPOINTS.length}: Connessione a ${endpoint}`);
+            console.log(`[API] Trying endpoint ${i + 1}/${RPC_ENDPOINTS.length}: ${endpoint}`);
             
             const connection = new Connection(endpoint, {
                 commitment: 'confirmed',
@@ -31,49 +58,47 @@ async function createConnectionWithFallback() {
                 confirmTransactionInitialTimeout: 30000
             });
             
-            // Test della connessione con timeout
+            // Test connection with timeout
             const timeoutPromise = new Promise((_, reject) => 
                 setTimeout(() => reject(new Error('Connection timeout')), 8000)
             );
             
-            const testPromise = connection.getLatestBlockhash('confirmed');
+            await Promise.race([
+                connection.getLatestBlockhash('confirmed'),
+                timeoutPromise
+            ]);
             
-            await Promise.race([testPromise, timeoutPromise]);
-            
-            console.log(`[API] ✅ Connesso con successo a ${endpoint}`);
+            console.log(`[API] ✅ Connected to ${endpoint}`);
             return connection;
             
         } catch (error) {
             const errorMsg = `${endpoint}: ${error.message}`;
             errors.push(errorMsg);
-            console.warn(`[API] ❌ Fallimento ${i + 1}: ${errorMsg}`);
+            console.warn(`[API] ❌ Failed ${i + 1}: ${errorMsg}`);
             
-            // Breve pausa prima del prossimo tentativo
             if (i < RPC_ENDPOINTS.length - 1) {
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
         }
     }
     
-    throw new Error(`Nessun endpoint RPC disponibile. Errori: ${errors.join('; ')}`);
+    throw new Error(`All RPC endpoints failed. Errors: ${errors.join('; ')}`);
 }
 
-// Funzione per verificare la transazione con tentativi e fallback RPC
 async function verifyTransaction(signature, payerAddress) {
     const connection = await createConnectionWithFallback();
     
-    console.log(`[API] 🔍 Inizio verifica transazione: ${signature}`);
-    console.log(`[API] 👤 Payer atteso: ${payerAddress}`);
-    console.log(`[API] 💰 Importo atteso: ${FEE_SOL} SOL (${EXPECTED_FEE_LAMPORTS} lamports)`);
-    console.log(`[API] 🎯 Destinatario atteso: ${FEE_RECIPIENT_ADDRESS}`);
+    console.log(`[API] 🔍 Verifying transaction: ${signature}`);
+    console.log(`[API] 👤 Expected payer: ${payerAddress}`);
+    console.log(`[API] 💰 Expected amount: ${FEE_SOL} SOL (${EXPECTED_FEE_LAMPORTS} lamports)`);
+    console.log(`[API] 🎯 Expected recipient: ${FEE_RECIPIENT_ADDRESS}`);
     
-    // Tenta per 60 secondi con intervalli intelligenti
     const maxAttempts = 20;
-    const baseDelay = 2000; // 2 secondi base
+    const baseDelay = 2000;
     
     for (let i = 0; i < maxAttempts; i++) {
         try {
-            console.log(`[API] Tentativo ${i + 1}/${maxAttempts}: Verifica transazione...`);
+            console.log(`[API] Attempt ${i + 1}/${maxAttempts}: Checking transaction...`);
             
             const tx = await connection.getTransaction(signature, { 
                 maxSupportedTransactionVersion: 0,
@@ -81,55 +106,56 @@ async function verifyTransaction(signature, payerAddress) {
             });
             
             if (tx) {
-                console.log('[API] 📦 Transazione trovata, verifica in corso...');
+                console.log('[API] 📦 Transaction found, verifying...');
                 
-                // 1. Controlla che la transazione non sia fallita
+                // Check if transaction failed
                 if (tx.meta.err) {
-                    console.error('[API] ❌ Transazione fallita:', tx.meta.err);
-                    throw new Error('La transazione di pagamento è fallita on-chain: ' + JSON.stringify(tx.meta.err));
+                    console.error('[API] ❌ Transaction failed:', tx.meta.err);
+                    throw new Error(`Payment transaction failed on-chain: ${JSON.stringify(tx.meta.err)}`);
                 }
                 
-                // 2. Controlla il pagante
+                // Verify payer
                 const signer = tx.transaction.message.accountKeys[0].toBase58();
-                console.log(`[API] 👤 Payer effettivo: ${signer}`);
+                console.log(`[API] 👤 Actual payer: ${signer}`);
                 
                 if (signer !== payerAddress) {
-                    throw new Error(`Il pagante non corrisponde. Atteso: ${payerAddress}, Ricevuto: ${signer}`);
+                    throw new Error(`Payer mismatch. Expected: ${payerAddress}, Got: ${signer}`);
                 }
                 
-                // 3. Trova l'istruzione di trasferimento del System Program
+                // Find System Program transfer instruction
                 const transferInstruction = tx.transaction.message.instructions.find(ix => {
                     const programId = tx.transaction.message.accountKeys[ix.programIdIndex].toBase58();
-                    return programId === '11111111111111111111111111111111'; // System Program
+                    return programId === '11111111111111111111111111111111';
                 });
                 
                 if (!transferInstruction) {
-                    console.error('[API] ❌ Nessuna istruzione di trasferimento trovata');
-                    throw new Error('Nessuna istruzione di trasferimento trovata nella transazione.');
+                    console.error('[API] ❌ No transfer instruction found');
+                    throw new Error('No transfer instruction found in transaction');
                 }
                 
-                // 4. Controlla il destinatario e l'importo
+                // Verify recipient and amount
                 const destAccountIndex = transferInstruction.accounts[1];
                 const recipient = tx.transaction.message.accountKeys[destAccountIndex].toBase58();
                 
-                console.log(`[API] 🎯 Destinatario effettivo: ${recipient}`);
+                console.log(`[API] 🎯 Actual recipient: ${recipient}`);
                 
                 if (recipient !== FEE_RECIPIENT_ADDRESS) {
-                    throw new Error(`Destinatario della commissione non corretto. Atteso: ${FEE_RECIPIENT_ADDRESS}, Ricevuto: ${recipient}`);
+                    throw new Error(`Fee recipient incorrect. Expected: ${FEE_RECIPIENT_ADDRESS}, Got: ${recipient}`);
                 }
                 
-                // Calcola l'importo trasferito
+                // Calculate transferred amount
                 const lamportsTransferred = tx.meta.postBalances[destAccountIndex] - tx.meta.preBalances[destAccountIndex];
                 const solTransferred = lamportsTransferred / LAMPORTS_PER_SOL;
                 
-                console.log(`[API] 💰 Importo trasferito: ${solTransferred} SOL (${lamportsTransferred} lamports)`);
+                console.log(`[API] 💰 Amount transferred: ${solTransferred} SOL (${lamportsTransferred} lamports)`);
                 
-                if (lamportsTransferred < EXPECTED_FEE_LAMPORTS) {
-                    throw new Error(`Importo della commissione insufficiente. Atteso: ${EXPECTED_FEE_LAMPORTS} lamports (${FEE_SOL} SOL), Ricevuto: ${lamportsTransferred} lamports (${solTransferred} SOL)`);
+                // Allow small tolerance for rounding
+                const tolerance = EXPECTED_FEE_LAMPORTS * 0.001; // 0.1%
+                if (lamportsTransferred < EXPECTED_FEE_LAMPORTS - tolerance) {
+                    throw new Error(`Insufficient fee amount. Expected: ${EXPECTED_FEE_LAMPORTS} lamports (${FEE_SOL} SOL), Got: ${lamportsTransferred} lamports (${solTransferred} SOL)`);
                 }
                 
-                console.log(`[API] ✅ Pagamento verificato con successo!`);
-                console.log(`[API] 📊 Dettagli: ${solTransferred} SOL trasferiti da ${signer} a ${recipient}`);
+                console.log(`[API] ✅ Payment verified successfully!`);
                 
                 return {
                     verified: true,
@@ -137,35 +163,34 @@ async function verifyTransaction(signature, payerAddress) {
                     amount: solTransferred,
                     payer: signer,
                     recipient,
+                    blockTime: tx.blockTime,
                     timestamp: new Date().toISOString()
                 };
             }
             
         } catch (error) {
-            // Se è un errore di verifica (non di rete), rilancia subito
-            if (error.message.includes('pagante non corrisponde') || 
-                error.message.includes('Destinatario della commissione') ||
-                error.message.includes('Importo della commissione') ||
-                error.message.includes('transazione è fallita')) {
+            // If validation error, throw immediately
+            if (error.message.includes('Payer mismatch') || 
+                error.message.includes('Fee recipient') ||
+                error.message.includes('Insufficient fee') ||
+                error.message.includes('failed on-chain')) {
                 throw error;
             }
             
-            // Per errori di rete, logga e continua
-            console.warn(`[API] ⚠️ Tentativo ${i + 1}: Errore nel recupero della transazione:`, error.message);
+            console.warn(`[API] ⚠️ Attempt ${i + 1}: ${error.message}`);
         }
         
-        // Attendi con backoff esponenziale
-        const delay = Math.min(baseDelay * Math.pow(1.2, i), 8000); // Max 8 secondi
-        console.log(`[API] ⏳ Attesa ${delay}ms prima del prossimo tentativo...`);
+        // Wait with exponential backoff
+        const delay = Math.min(baseDelay * Math.pow(1.2, i), 8000);
+        console.log(`[API] ⏳ Waiting ${delay}ms before next attempt...`);
         await new Promise(resolve => setTimeout(resolve, delay));
     }
     
-    // Se il loop finisce, la transazione non è stata trovata o confermata in tempo
-    throw new Error(`Timeout: Non è stato possibile confermare il pagamento entro ${maxAttempts} tentativi. La transazione potrebbe non essere ancora confermata sulla blockchain o potresti essere connesso alla rete sbagliata.`);
+    throw new Error(`Timeout: Could not confirm payment within ${maxAttempts} attempts. Transaction may not be confirmed yet or you might be on wrong network.`);
 }
 
 module.exports = async (req, res) => {
-    // Gestione CORS
+    // CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -181,66 +206,72 @@ module.exports = async (req, res) => {
         });
     }
     
+    // Rate limiting
+    const clientIP = req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
+    if (!checkVerificationRateLimit(clientIP)) {
+        return res.status(429).json({ 
+            success: false, 
+            error: 'Too many verification attempts. Please wait before retrying.' 
+        });
+    }
+    
     const { signature, payer } = req.body;
     
-    // Validazione input
+    // Input validation
     if (!signature || !payer) {
         return res.status(400).json({ 
             success: false, 
-            error: 'Signature e Payer sono obbligatori.' 
+            error: 'Signature and payer are required' 
         });
     }
     
-    // Validazione formato signature
     if (typeof signature !== 'string' || signature.length < 80) {
         return res.status(400).json({ 
             success: false, 
-            error: 'Formato signature non valido.' 
+            error: 'Invalid signature format' 
         });
     }
     
-    // Validazione formato payer (deve essere una valid base58 pubkey)
     try {
         new PublicKey(payer);
     } catch (error) {
         return res.status(400).json({ 
             success: false, 
-            error: 'Formato payer address non valido.' 
+            error: 'Invalid payer address format' 
         });
     }
     
     try {
-        console.log(`[API] 🚀 Inizio verifica pagamento`);
+        console.log(`[API] 🚀 Starting payment verification`);
         console.log(`[API] 📝 Signature: ${signature}`);
         console.log(`[API] 👤 Payer: ${payer}`);
-        console.log(`[API] 🌐 Endpoints disponibili: ${RPC_ENDPOINTS.length}`);
+        console.log(`[API] 🌐 Available endpoints: ${RPC_ENDPOINTS.length}`);
         
         const result = await verifyTransaction(signature, payer);
         
-        console.log(`[API] ✅ Verifica completata con successo`);
+        console.log(`[API] ✅ Verification completed successfully`);
         
         res.status(200).json({ 
             success: true, 
-            message: 'Pagamento verificato con successo.',
+            message: 'Payment verified successfully',
             data: result
         });
         
     } catch (error) {
-        console.error(`[API] ❌ Verifica fallita per la firma ${signature.substring(0, 20)}...:`);
-        console.error(`[API] 📋 Errore completo:`, error.message);
+        console.error(`[API] ❌ Verification failed for ${signature.substring(0, 20)}...:`);
+        console.error(`[API] 📋 Full error:`, error.message);
         
-        // Determina il tipo di errore per il codice di stato appropriato
         let statusCode = 400;
-        if (error.message.includes('Timeout') || error.message.includes('endpoint RPC')) {
-            statusCode = 503; // Service Unavailable
-        } else if (error.message.includes('transazione è fallita')) {
-            statusCode = 422; // Unprocessable Entity
+        if (error.message.includes('Timeout') || error.message.includes('RPC endpoints')) {
+            statusCode = 503;
+        } else if (error.message.includes('failed on-chain')) {
+            statusCode = 422;
         }
         
         res.status(statusCode).json({ 
             success: false, 
             error: error.message,
-            signature: signature.substring(0, 20) + '...', // Solo primi 20 caratteri per log sicuri
+            signature: signature.substring(0, 20) + '...',
             timestamp: new Date().toISOString()
         });
     }
