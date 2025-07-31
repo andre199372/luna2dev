@@ -1,31 +1,14 @@
 {
-  "name": "luna-launch-token-creator",
+  "name": "galaxy-launch-token-creator",
   "version": "1.0.0",
-  "description": "Solana Token Creator for Vercel deployment",
-  "main": "api/upload-metadata.js",
+  "description": "Solana SPL Token Creator with on-chain fee verification.",
+  "main": "index.html",
   "scripts": {
-    "dev": "vercel dev",
-    "build": "echo 'Build completed successfully'",
     "start": "vercel dev"
   },
   "dependencies": {
-    "@solana/spl-token": "^0.4.1",
-    "@solana/web3.js": "^1.91.4",
-    "axios": "^1.6.2",
+    "@solana/web3.js": "^1.91.8",
+    "axios": "^1.7.2",
     "form-data": "^4.0.0"
-  },
-  "devDependencies": {
-    "vercel": "^32.7.2"
-  },
-  "engines": {    "node": ">=18.0.0"
-  },
-  "keywords": [
-    "solana",
-    "token",
-    "blockchain",
-    "vercel",
-    "serverless"
-  ],
-  "author": "Luna Launch",
-  "license": "MIT"
+  }
 }
