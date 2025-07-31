@@ -1619,32 +1619,33 @@
                 } else if (appState === 'awaiting_creation') {
                     await handleCreationStep(provider);
                 }
-                try {
-                    console.error('Errore nel form:', error);
-                    updateStatus(error.message, 'error');
-                    resetButton();
+            } catch (error) {
+                console.error('Errore nel form:', error);
+                updateStatus(error.message, 'error');
+                resetButton();
+                
+                // Mostra errore dettagliato per problemi di connessione
+                if (error.message.includes('endpoint RPC') || error.message.includes('blockchain') || error.message.includes('sovraccarichi')) {
+                    const result = await Swal.fire({
+                        title: 'Problema di Connessione RPC',
+                        html: `
+                            <div style="text-align: left;">
+                                <p>${error.message.replace(/\n/g, '<br>')}</p>
+                            </div>
+                        `,
+                        icon: 'error',
+                        showCancelButton: true,
+                        confirmButtonText: '🔧 Configura RPC Custom',
+                        cancelButtonText: 'Riprova',
+                        footer: '<small>Gli RPC pubblici possono avere limiti di utilizzo</small>'
+                    });
                     
-                    // Mostra errore dettagliato per problemi di connessione
-                    if (error.message.includes('endpoint RPC') || error.message.includes('blockchain') || error.message.includes('sovraccarichi')) {
-                        const result = await Swal.fire({
-                            title: 'Problema di Connessione RPC',
-                            html: `
-                                <div style="text-align: left;">
-                                    <p>${error.message.replace(/\n/g, '<br>')}</p>
-                                </div>
-                            `,
-                            icon: 'error',
-                            showCancelButton: true,
-                            confirmButtonText: '🔧 Configura RPC Custom',
-                            cancelButtonText: 'Riprova',
-                            footer: '<small>Gli RPC pubblici possono avere limiti di utilizzo</small>'
-                        });
-                        
-                        if (result.isConfirmed) {
-                            await showCustomRPCDialog();
-                        }
+                    if (result.isConfirmed) {
+                        await showCustomRPCDialog();
                     }
-                } catch (error) {
+                }
+            }
+        });
         });
 
         // --- PASSO 1: GESTIONE PAGAMENTO CON RETRY AUTOMATICO ---
