@@ -1138,15 +1138,12 @@
         const BASE_FEE = 0.3;
         const FEE_RECIPIENT = new solanaWeb3.PublicKey('BeEbsaq4dKfzZQBK6zet4wj8UJCTF9zzU7QLgWpERqBg');
 
-        // RPC Endpoints con fallback - Aggiornati e testati
+        // RPC Endpoints - SOLO MAINNET per produzione
         const RPC_ENDPOINTS = [
-            // Endpoint pubblici più affidabili
             'https://api.mainnet-beta.solana.com',
             'https://solana-mainnet.g.alchemy.com/v2/demo',
             'https://rpc.ankr.com/solana',
-            'https://mainnet.helius-rpc.com/?api-key=demo',
-            'https://solana-api.projectserum.com',
-            'https://api.devnet.solana.com' // Fallback per test
+            'https://mainnet.helius-rpc.com/?api-key=demo'
         ];
 
         // Fee structure per features
@@ -1506,51 +1503,146 @@
             }
         });
 
-        // --- PASSO 1: GESTIONE PAGAMENTO ---
+        // --- PASSO 1: GESTIONE PAGAMENTO CON RETRY AUTOMATICO ---
         async function handlePaymentStep(provider) {
             try {
-                updateStatus('⏳ Connessione alla rete Solana in corso...');
+                updateStatus('⏳ Connessione alla rete Solana mainnet...');
+                
+                // Verifica che siamo su mainnet
+                if (await isWalletOnWrongNetwork(provider)) {
+                    throw new Error('Il wallet deve essere configurato su Solana Mainnet. Cambia rete in Phantom e riprova.');
+                }
                 
                 // Usa la nuova funzione migliorata
                 const { connection, blockhash, lastValidBlockHeight } = await getWorkingConnectionAndBlockhash();
                 
                 updateStatus('💰 Preparazione della transazione di pagamento...');
                 
+                // Calcola fee con maggiore precisione per evitare errori
+                const lamports = Math.floor(currentFee * solanaWeb3.LAMPORTS_PER_SOL);
+                console.log(`💸 Importo da trasferire: ${currentFee} SOL (${lamports} lamports)`);
+                
                 const transaction = new solanaWeb3.Transaction().add(
                     solanaWeb3.SystemProgram.transfer({
                         fromPubkey: wallet.publicKey,
                         toPubkey: FEE_RECIPIENT,
-                        lamports: Math.floor(currentFee * solanaWeb3.LAMPORTS_PER_SOL),
+                        lamports: lamports,
                     })
                 );
 
                 transaction.feePayer = wallet.publicKey;
                 transaction.recentBlockhash = blockhash;
                 
-                updateStatus('✍️ Richiesta di firma per il pagamento...');
+                // Verifica saldo prima di procedere
+                const balance = await connection.getBalance(wallet.publicKey);
+                const balanceSOL = balance / solanaWeb3.LAMPORTS_PER_SOL;
                 
-                const { signature } = await provider.signAndSendTransaction(transaction);
-                console.log('📝 Signature pagamento:', signature);
+                console.log(`💰 Saldo wallet: ${balanceSOL.toFixed(4)} SOL`);
                 
-                updateStatus('🔍 Verifica del pagamento sulla blockchain... (può richiedere fino a 60 secondi)');
-                
-                // Il resto della funzione rimane invariato...
-                const verificationResponse = await fetch('/api/verify-payment', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        signature, 
-                        payer: wallet.publicKey.toBase58() 
-                    })
-                });
-
-                if (!verificationResponse.ok) {
-                    const errorData = await verificationResponse.json();
-                    throw new Error(errorData.error || 'Verifica del pagamento fallita');
+                if (balance < lamports + 5000) { // 5000 lamports per transaction fee
+                    throw new Error(`Saldo insufficiente. Hai ${balanceSOL.toFixed(4)} SOL ma servono almeno ${(currentFee + 0.005).toFixed(4)} SOL (incluse le commissioni di rete).`);
                 }
                 
-                const result = await verificationResponse.json();
-                console.log('✅ Verifica completata:', result);
+                updateStatus('✍️ Richiesta di firma per il pagamento...');
+                
+                // Invia transazione con retry
+                let signature;
+                let attempts = 0;
+                const maxAttempts = 3;
+                
+                while (attempts < maxAttempts) {
+                    try {
+                        const result = await provider.signAndSendTransaction(transaction, {
+                            skipPreflight: false,
+                            preflightCommitment: 'confirmed',
+                            maxRetries: 3
+                        });
+                        signature = result.signature;
+                        break;
+                    } catch (error) {
+                        attempts++;
+                        console.warn(`❌ Tentativo ${attempts}/${maxAttempts} fallito:`, error.message);
+                        
+                        if (attempts >= maxAttempts) {
+                            throw new Error(`Invio transazione fallito dopo ${maxAttempts} tentativi: ${error.message}`);
+                        }
+                        
+                        // Attendi prima del retry
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        
+                        // Aggiorna blockhash per il retry
+                        const { blockhash: newBlockhash } = await connection.getLatestBlockhash('confirmed');
+                        transaction.recentBlockhash = newBlockhash;
+                    }
+                }
+                
+                console.log('📝 Signature pagamento:', signature);
+                
+                updateStatus('🔍 Conferma della transazione in corso... (30-60 secondi)');
+                
+                // Attendi conferma della transazione
+                const confirmation = await connection.confirmTransaction({
+                    signature,
+                    blockhash,
+                    lastValidBlockHeight
+                }, 'confirmed');
+                
+                if (confirmation.value.err) {
+                    throw new Error('La transazione è stata rifiutata dalla rete: ' + JSON.stringify(confirmation.value.err));
+                }
+                
+                console.log('✅ Transazione confermata on-chain');
+                
+                updateStatus('🔐 Verifica del pagamento tramite API...');
+                
+                // Verifica tramite API con retry
+                let verificationSuccess = false;
+                const maxVerificationAttempts = 10;
+                
+                for (let i = 0; i < maxVerificationAttempts; i++) {
+                    try {
+                        const verificationResponse = await fetch('/api/verify-payment', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                signature, 
+                                payer: wallet.publicKey.toBase58() 
+                            })
+                        });
+
+                        if (verificationResponse.ok) {
+                            const result = await verificationResponse.json();
+                            console.log('✅ Verifica API completata:', result);
+                            verificationSuccess = true;
+                            break;
+                        } else {
+                            const errorData = await verificationResponse.json();
+                            console.warn(`Tentativo verifica ${i + 1}/${maxVerificationAttempts}:`, errorData.error);
+                        }
+                    } catch (error) {
+                        console.warn(`Errore verifica ${i + 1}/${maxVerificationAttempts}:`, error.message);
+                    }
+                    
+                    // Attendi prima del prossimo tentativo
+                    if (i < maxVerificationAttempts - 1) {
+                        updateStatus(`🔍 Verifica in corso... tentativo ${i + 2}/${maxVerificationAttempts}`);
+                        await new Promise(resolve => setTimeout(resolve, 6000)); // 6 secondi tra tentativi
+                    }
+                }
+                
+                if (!verificationSuccess) {
+                    // Se la verifica API fallisce ma la transazione è confermata, procedi comunque
+                    await Swal.fire({
+                        title: 'Transazione Completata',
+                        html: `
+                            <p>✅ Il pagamento è stato confermato sulla blockchain</p>
+                            <p><strong>Signature:</strong> <code style="word-break: break-all; font-size: 0.8em;">${signature}</code></p>
+                            <p>⚠️ La verifica API ha avuto problemi, ma puoi procedere con la creazione del token.</p>
+                        `,
+                        icon: 'success',
+                        confirmButtonText: 'Continua'
+                    });
+                }
                 
                 await Swal.fire({
                     title: 'Pagamento Confermato!',
@@ -1567,15 +1659,45 @@
             } catch (error) {
                 console.error('❌ Errore nel pagamento:', error);
                 
+                let errorMessage = error.message;
+                let errorTitle = 'Errore nel Pagamento';
+                
+                // Messaggi di errore più specifici
+                if (error.message.includes('User rejected')) {
+                    errorTitle = 'Transazione Annullata';
+                    errorMessage = 'Hai annullato la transazione. Clicca nuovamente per riprovare.';
+                } else if (error.message.includes('Saldo insufficiente')) {
+                    errorTitle = 'Saldo Insufficiente';
+                } else if (error.message.includes('network')) {
+                    errorTitle = 'Problema di Rete';
+                    errorMessage = 'Problema di connessione alla rete Solana. Verifica la tua connessione internet e riprova.';
+                }
+                
                 await Swal.fire({
-                    title: 'Errore nel Pagamento',
-                    text: error.message,
+                    title: errorTitle,
+                    text: errorMessage,
                     icon: 'error',
-                    confirmButtonText: 'Riprova'
+                    confirmButtonText: 'Riprova',
+                    footer: error.message.includes('Saldo insufficiente') ? 
+                        '<small>Puoi comprare SOL su un exchange come Binance o Coinbase</small>' : null
                 });
                 
                 updateStatus('Passo 1: Completa il form e paga la commissione per procedere.', 'error');
                 resetButton();
+            }
+        }
+
+        // Funzione per verificare se il wallet è sulla rete corretta
+        async function isWalletOnWrongNetwork(provider) {
+            try {
+                // Prova a ottenere il balance - se va in timeout probabilmente siamo su devnet
+                const balance = await Promise.race([
+                    provider.getBalance(wallet.publicKey),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+                ]);
+                return false; // Se otteniamo il balance, siamo probabilmente su mainnet
+            } catch (error) {
+                return true; // Probabilmente su devnet o altra rete
             }
         }
 
