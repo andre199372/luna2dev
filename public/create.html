@@ -1453,11 +1453,31 @@
         });
 
         // --- PASSO 1: GESTIONE PAGAMENTO ---
+       // --- 1. SOSTITUISCI LA VECCHIA FUNZIONE createConnection ---
+        // Questa nuova funzione proverà a ottenere un blockhash da ogni RPC nella tua lista
+        // finché non ne trova uno funzionante.
+        async function getWorkingConnectionAndBlockhash() {
+            for (const endpoint of RPC_ENDPOINTS) {
+                try {
+                    const connection = new solanaWeb3.Connection(endpoint, 'confirmed');
+                    const { blockhash } = await connection.getLatestBlockhash('confirmed');
+                    console.log(`✅ Connesso a ${endpoint} e ottenuto blockhash.`);
+                    return { connection, blockhash };
+                } catch (error) {
+                    console.warn(`Fallimento con l'endpoint ${endpoint}: ${error.message}. Provo il successivo...`);
+                }
+            }
+            throw new Error('Tutti gli endpoint RPC hanno fallito. Impossibile ottenere blockhash dalla blockchain.');
+        }
+
+
+        // --- 2. SOSTITUISCI LA VECCHIA FUNZIONE handlePaymentStep ---
         async function handlePaymentStep(provider) {
             try {
                 updateStatus('Preparazione della transazione di pagamento...');
                 
-                const connection = createConnection();
+                // La nuova funzione viene chiamata qui
+                const { connection, blockhash } = await getWorkingConnectionAndBlockhash();
                 
                 const transaction = new solanaWeb3.Transaction().add(
                     solanaWeb3.SystemProgram.transfer({
@@ -1468,26 +1488,7 @@
                 );
 
                 transaction.feePayer = wallet.publicKey;
-                
-                let retries = 0;
-                let recentBlockhash;
-                
-                while (retries < 3) {
-                    try {
-                        const { blockhash } = await connection.getLatestBlockhash('confirmed');
-                        recentBlockhash = blockhash;
-                        break;
-                    } catch (error) {
-                        retries++;
-                        console.warn(`Tentativo ${retries} per ottenere blockhash fallito:`, error.message);
-                        if (retries >= 3) {
-                            throw new Error('Impossibile ottenere blockhash dalla blockchain. Riprova più tardi.');
-                        }
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                    }
-                }
-                
-                transaction.recentBlockhash = recentBlockhash;
+                transaction.recentBlockhash = blockhash;
                 
                 updateStatus('Richiesta di firma per il pagamento...');
                 
@@ -1496,6 +1497,7 @@
                 
                 updateStatus('Verifica del pagamento sulla blockchain... (può richiedere fino a 60 secondi)');
                 
+                // Il resto della funzione rimane invariato...
                 const verificationResponse = await fetch('/api/verify-payment', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
