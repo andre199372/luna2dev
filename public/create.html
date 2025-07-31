@@ -1138,13 +1138,15 @@
         const BASE_FEE = 0.3;
         const FEE_RECIPIENT = new solanaWeb3.PublicKey('BeEbsaq4dKfzZQBK6zet4wj8UJCTF9zzU7QLgWpERqBg');
 
-        // RPC Endpoints con fallback
+        // RPC Endpoints con fallback - Aggiornati e testati
         const RPC_ENDPOINTS = [
+            // Endpoint pubblici più affidabili
             'https://api.mainnet-beta.solana.com',
-            'https://solana-api.projectserum.com',
-            'https://rpc.ankr.com/solana',
             'https://solana-mainnet.g.alchemy.com/v2/demo',
-            'https://mainnet.helius-rpc.com/?api-key=demo'
+            'https://rpc.ankr.com/solana',
+            'https://mainnet.helius-rpc.com/?api-key=demo',
+            'https://solana-api.projectserum.com',
+            'https://api.devnet.solana.com' // Fallback per test
         ];
 
         // Fee structure per features
@@ -1320,17 +1322,54 @@
             btnFeeDisplay.textContent = fee.toFixed(2);
         }
 
-        // --- CONNESSIONE WALLET ---
-        function createConnection() {
-            for (const endpoint of RPC_ENDPOINTS) {
+        // --- CONNESSIONE WALLET CON MIGLIORAMENTI ---
+        async function getWorkingConnectionAndBlockhash() {
+            const errors = [];
+            
+            for (let i = 0; i < RPC_ENDPOINTS.length; i++) {
+                const endpoint = RPC_ENDPOINTS[i];
                 try {
-                    return new solanaWeb3.Connection(endpoint, 'confirmed');
+                    console.log(`🔍 Tentativo ${i + 1}/${RPC_ENDPOINTS.length}: Connessione a ${endpoint}`);
+                    
+                    const connection = new solanaWeb3.Connection(endpoint, {
+                        commitment: 'confirmed',
+                        disableRetryOnRateLimit: false,
+                        confirmTransactionInitialTimeout: 60000,
+                        wsEndpoint: undefined // Disabilita WebSocket per evitare problemi CORS
+                    });
+                    
+                    // Test della connessione con timeout
+                    const timeoutPromise = new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Timeout')), 10000)
+                    );
+                    
+                    const blockhashPromise = connection.getLatestBlockhash('confirmed');
+                    
+                    const { blockhash, lastValidBlockHeight } = await Promise.race([
+                        blockhashPromise,
+                        timeoutPromise
+                    ]);
+                    
+                    console.log(`✅ Connesso con successo a ${endpoint}`);
+                    console.log(`📦 Blockhash ottenuto: ${blockhash.substring(0, 20)}...`);
+                    
+                    return { connection, blockhash, lastValidBlockHeight };
+                    
                 } catch (error) {
-                    console.warn(`Fallimento connessione a ${endpoint}:`, error);
-                    continue;
+                    const errorMsg = `${endpoint}: ${error.message}`;
+                    errors.push(errorMsg);
+                    console.warn(`❌ Fallimento ${i + 1}: ${errorMsg}`);
+                    
+                    // Breve pausa prima del prossimo tentativo
+                    if (i < RPC_ENDPOINTS.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
                 }
             }
-            throw new Error('Nessun endpoint RPC disponibile');
+            
+            // Se tutti gli endpoint falliscono
+            console.error('🚨 Tutti gli endpoint RPC hanno fallito:', errors);
+            throw new Error(`Impossibile connettersi alla blockchain Solana. Dettagli:\n${errors.slice(0, 3).join('\n')}\n\nRiprova tra qualche minuto o verifica la tua connessione internet.`);
         }
 
         async function connectWallet() {
@@ -1340,10 +1379,13 @@
                     const resp = await provider.connect();
                     wallet.publicKey = resp.publicKey;
                     wallet.connected = true;
-                    console.log('Wallet connesso:', wallet.publicKey.toBase58());
+                    console.log('✅ Wallet connesso:', wallet.publicKey.toBase58());
                     return provider;
                 } catch (err) {
-                    throw new Error('Connessione al wallet rifiutata.');
+                    if (err.code === 4001) {
+                        throw new Error('Connessione al wallet annullata dall\'utente.');
+                    }
+                    throw new Error('Errore durante la connessione al wallet: ' + err.message);
                 }
             }
             throw new Error('Phantom wallet non trovato. Installa Phantom per continuare.');
@@ -1447,55 +1489,50 @@
                     await handleCreationStep(provider);
                 }
             } catch (error) {
+                console.error('Errore nel form:', error);
                 updateStatus(error.message, 'error');
                 resetButton();
+                
+                // Mostra errore dettagliato per problemi di connessione
+                if (error.message.includes('endpoint RPC') || error.message.includes('blockchain')) {
+                    await Swal.fire({
+                        title: 'Problema di Connessione',
+                        text: error.message,
+                        icon: 'error',
+                        confirmButtonText: 'Riprova',
+                        footer: '<small>Se il problema persiste, controlla la tua connessione internet</small>'
+                    });
+                }
             }
         });
 
         // --- PASSO 1: GESTIONE PAGAMENTO ---
-       // --- 1. SOSTITUISCI LA VECCHIA FUNZIONE createConnection ---
-        // Questa nuova funzione proverà a ottenere un blockhash da ogni RPC nella tua lista
-        // finché non ne trova uno funzionante.
-        async function getWorkingConnectionAndBlockhash() {
-            for (const endpoint of RPC_ENDPOINTS) {
-                try {
-                    const connection = new solanaWeb3.Connection(endpoint, 'confirmed');
-                    const { blockhash } = await connection.getLatestBlockhash('confirmed');
-                    console.log(`✅ Connesso a ${endpoint} e ottenuto blockhash.`);
-                    return { connection, blockhash };
-                } catch (error) {
-                    console.warn(`Fallimento con l'endpoint ${endpoint}: ${error.message}. Provo il successivo...`);
-                }
-            }
-            throw new Error('Tutti gli endpoint RPC hanno fallito. Impossibile ottenere blockhash dalla blockchain.');
-        }
-
-
-        // --- 2. SOSTITUISCI LA VECCHIA FUNZIONE handlePaymentStep ---
         async function handlePaymentStep(provider) {
             try {
-                updateStatus('Preparazione della transazione di pagamento...');
+                updateStatus('⏳ Connessione alla rete Solana in corso...');
                 
-                // La nuova funzione viene chiamata qui
-                const { connection, blockhash } = await getWorkingConnectionAndBlockhash();
+                // Usa la nuova funzione migliorata
+                const { connection, blockhash, lastValidBlockHeight } = await getWorkingConnectionAndBlockhash();
+                
+                updateStatus('💰 Preparazione della transazione di pagamento...');
                 
                 const transaction = new solanaWeb3.Transaction().add(
                     solanaWeb3.SystemProgram.transfer({
                         fromPubkey: wallet.publicKey,
                         toPubkey: FEE_RECIPIENT,
-                        lamports: currentFee * solanaWeb3.LAMPORTS_PER_SOL,
+                        lamports: Math.floor(currentFee * solanaWeb3.LAMPORTS_PER_SOL),
                     })
                 );
 
                 transaction.feePayer = wallet.publicKey;
                 transaction.recentBlockhash = blockhash;
                 
-                updateStatus('Richiesta di firma per il pagamento...');
+                updateStatus('✍️ Richiesta di firma per il pagamento...');
                 
                 const { signature } = await provider.signAndSendTransaction(transaction);
-                console.log('Signature pagamento:', signature);
+                console.log('📝 Signature pagamento:', signature);
                 
-                updateStatus('Verifica del pagamento sulla blockchain... (può richiedere fino a 60 secondi)');
+                updateStatus('🔍 Verifica del pagamento sulla blockchain... (può richiedere fino a 60 secondi)');
                 
                 // Il resto della funzione rimane invariato...
                 const verificationResponse = await fetch('/api/verify-payment', {
@@ -1513,7 +1550,7 @@
                 }
                 
                 const result = await verificationResponse.json();
-                console.log('Verifica completata:', result);
+                console.log('✅ Verifica completata:', result);
                 
                 await Swal.fire({
                     title: 'Pagamento Confermato!',
@@ -1528,7 +1565,7 @@
                 mainBtn.disabled = false;
 
             } catch (error) {
-                console.error('Errore nel pagamento:', error);
+                console.error('❌ Errore nel pagamento:', error);
                 
                 await Swal.fire({
                     title: 'Errore nel Pagamento',
@@ -1545,12 +1582,12 @@
         // --- PASSO 2: GESTIONE CREAZIONE TOKEN ---
         async function handleCreationStep(provider) {
             try {
-                updateStatus('Raccolta configurazione token...');
+                updateStatus('📋 Raccolta configurazione token...');
                 
                 const config = collectTokenConfig();
-                console.log('Token config:', config);
+                console.log('🔧 Token config:', config);
                 
-                updateStatus('Caricamento dei metadati su IPFS...');
+                updateStatus('☁️ Caricamento dei metadati su IPFS...');
                 
                 // Upload metadati
                 const metadataResponse = await fetch('/api/upload-metadata', {
@@ -1565,12 +1602,12 @@
                 }
                 
                 const { metadataUrl } = await metadataResponse.json();
-                console.log('Metadata URL:', metadataUrl);
+                console.log('📄 Metadata URL:', metadataUrl);
 
-                updateStatus('Preparazione delle transazioni di creazione...');
+                updateStatus('🔨 Preparazione delle transazioni di creazione...');
                 
                 // Simulazione creazione token (sostituisci con logica reale)
-                const connection = createConnection();
+                const { connection } = await getWorkingConnectionAndBlockhash();
                 const mintKeypair = solanaWeb3.Keypair.generate();
                 
                 // Qui implementeresti la logica completa di creazione token
@@ -1623,7 +1660,7 @@
                 });
 
             } catch (error) {
-                console.error('Errore nella creazione:', error);
+                console.error('❌ Errore nella creazione:', error);
                 
                 await Swal.fire({
                     title: 'Errore nella Creazione',
@@ -1936,21 +1973,78 @@
             e.preventDefault();
         });
 
-        console.log(`
-            🌟 Galaxy Launch v2.0 Loaded Successfully!
+        // --- CONNECTION HEALTH CHECK ---
+        
+        // Periodic health check per gli endpoint RPC
+        let healthCheckInterval;
+        
+        function startHealthCheck() {
+            healthCheckInterval = setInterval(async () => {
+                try {
+                    await getWorkingConnectionAndBlockhash();
+                    console.log('🟢 RPC Health Check: OK');
+                } catch (error) {
+                    console.warn('🟡 RPC Health Check: Issues detected', error.message);
+                }
+            }, 60000); // Check ogni minuto
+        }
+        
+        function stopHealthCheck() {
+            if (healthCheckInterval) {
+                clearInterval(healthCheckInterval);
+                healthCheckInterval = null;
+            }
+        }
+        
+        // Avvia health check quando necessario
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                stopHealthCheck();
+            } else {
+                startHealthCheck();
+            }
+        });
+
+        // --- NETWORK STATUS DETECTION ---
+        
+        function updateNetworkStatus() {
+            const isOnline = navigator.onLine;
+            const statusElement = document.getElementById('status-display');
             
-            Features:
-            ✅ Complete token creation workflow
-            ✅ Dynamic fee calculation  
-            ✅ Advanced form validation
-            ✅ File upload with preview
-            ✅ Responsive design
-            ✅ Error handling
-            ✅ Progressive Web App ready
-            ✅ Accessibility features
-            ✅ Performance optimized
+            if (!isOnline && appState === 'awaiting_payment') {
+                updateStatus('⚠️ Connessione internet persa. Riprova quando torni online.', 'error');
+                mainBtn.disabled = true;
+            } else if (isOnline && mainBtn.disabled && appState === 'awaiting_payment') {
+                updateStatus('Passo 1: Completa il form e paga la commissione per procedere.');
+                mainBtn.disabled = false;
+            }
+        }
+        
+        window.addEventListener('online', updateNetworkStatus);
+        window.addEventListener('offline', updateNetworkStatus);
+        
+        // Check iniziale
+        updateNetworkStatus();
+
+        console.log(`
+            🌟 Galaxy Launch v2.1 Loaded Successfully!
+            
+            New Features:
+            ✅ Improved RPC connection handling
+            ✅ Better error messages and debugging
+            ✅ Network status detection
+            ✅ RPC endpoint health monitoring
+            ✅ Enhanced timeout handling
+            ✅ Graceful fallback mechanisms
+            ✅ Real-time status updates
+            ✅ Connection retry logic
             
             Ready to launch tokens to the moon! 🚀
+            
+            Debug Info:
+            - ${RPC_ENDPOINTS.length} RPC endpoints configured
+            - Network status: ${navigator.onLine ? 'Online' : 'Offline'}
+            - Phantom wallet: ${window.phantom?.solana ? 'Detected' : 'Not found'}
         `);
     });
     </script>
