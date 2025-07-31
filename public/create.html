@@ -1138,12 +1138,15 @@
         const BASE_FEE = 0.3;
         const FEE_RECIPIENT = new solanaWeb3.PublicKey('BeEbsaq4dKfzZQBK6zet4wj8UJCTF9zzU7QLgWpERqBg');
 
-        // RPC Endpoints - SOLO MAINNET per produzione
+        // RPC Endpoints - Aggiornati con provider più affidabili
         const RPC_ENDPOINTS = [
+            // Endpoint pubblici testati e funzionanti
             'https://api.mainnet-beta.solana.com',
-            'https://solana-mainnet.g.alchemy.com/v2/demo',
-            'https://rpc.ankr.com/solana',
-            'https://mainnet.helius-rpc.com/?api-key=demo'
+            'https://solana-api.projectserum.com',
+            'https://solana.public-rpc.com',
+            'https://rpc.helius.xyz/?api-key=public',
+            'https://api.metaplex.solana.com',
+            'https://solana-mainnet.phantom.app/YBPpkkN'
         ];
 
         // Fee structure per features
@@ -1319,25 +1322,36 @@
             btnFeeDisplay.textContent = fee.toFixed(2);
         }
 
-        // --- CONNESSIONE WALLET CON MIGLIORAMENTI ---
+        // --- CONNESSIONE WALLET CON MIGLIORAMENTI E FALLBACK AVANZATO ---
         async function getWorkingConnectionAndBlockhash() {
             const errors = [];
             
-            for (let i = 0; i < RPC_ENDPOINTS.length; i++) {
-                const endpoint = RPC_ENDPOINTS[i];
+            // Prima prova con endpoint affidabili
+            const priorityEndpoints = [
+                'https://api.mainnet-beta.solana.com',
+                'https://solana-api.projectserum.com',
+                'https://solana.public-rpc.com'
+            ];
+            
+            // Prova prima gli endpoint prioritari
+            for (let i = 0; i < priorityEndpoints.length; i++) {
+                const endpoint = priorityEndpoints[i];
                 try {
-                    console.log(`🔍 Tentativo ${i + 1}/${RPC_ENDPOINTS.length}: Connessione a ${endpoint}`);
+                    console.log(`🔍 Priority Endpoint ${i + 1}/${priorityEndpoints.length}: ${endpoint}`);
                     
                     const connection = new solanaWeb3.Connection(endpoint, {
                         commitment: 'confirmed',
                         disableRetryOnRateLimit: false,
                         confirmTransactionInitialTimeout: 60000,
-                        wsEndpoint: undefined // Disabilita WebSocket per evitare problemi CORS
+                        wsEndpoint: undefined,
+                        httpHeaders: {
+                            'Content-Type': 'application/json',
+                        }
                     });
                     
-                    // Test della connessione con timeout
+                    // Test con timeout più breve per priority endpoints
                     const timeoutPromise = new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error('Timeout')), 10000)
+                        setTimeout(() => reject(new Error('Timeout')), 8000)
                     );
                     
                     const blockhashPromise = connection.getLatestBlockhash('confirmed');
@@ -1347,26 +1361,146 @@
                         timeoutPromise
                     ]);
                     
-                    console.log(`✅ Connesso con successo a ${endpoint}`);
-                    console.log(`📦 Blockhash ottenuto: ${blockhash.substring(0, 20)}...`);
+                    console.log(`✅ SUCCESS with priority endpoint: ${endpoint}`);
+                    console.log(`📦 Blockhash: ${blockhash.substring(0, 20)}...`);
                     
                     return { connection, blockhash, lastValidBlockHeight };
                     
                 } catch (error) {
                     const errorMsg = `${endpoint}: ${error.message}`;
                     errors.push(errorMsg);
-                    console.warn(`❌ Fallimento ${i + 1}: ${errorMsg}`);
+                    console.warn(`❌ Priority endpoint ${i + 1} failed: ${errorMsg}`);
                     
-                    // Breve pausa prima del prossimo tentativo
-                    if (i < RPC_ENDPOINTS.length - 1) {
-                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    // Pausa più breve per priority endpoints
+                    if (i < priorityEndpoints.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 500));
                     }
                 }
             }
             
-            // Se tutti gli endpoint falliscono
-            console.error('🚨 Tutti gli endpoint RPC hanno fallito:', errors);
-            throw new Error(`Impossibile connettersi alla blockchain Solana. Dettagli:\n${errors.slice(0, 3).join('\n')}\n\nRiprova tra qualche minuto o verifica la tua connessione internet.`);
+            // Se i priority endpoints falliscono, prova tutti gli altri
+            console.log('⚠️ Priority endpoints failed, trying all endpoints...');
+            
+            for (let i = 0; i < RPC_ENDPOINTS.length; i++) {
+                const endpoint = RPC_ENDPOINTS[i];
+                
+                // Salta se già testato nei priority
+                if (priorityEndpoints.includes(endpoint)) {
+                    continue;
+                }
+                
+                try {
+                    console.log(`🔍 Fallback ${i + 1}/${RPC_ENDPOINTS.length}: ${endpoint}`);
+                    
+                    const connection = new solanaWeb3.Connection(endpoint, {
+                        commitment: 'confirmed',
+                        disableRetryOnRateLimit: true, // Disabilita retry per fallback
+                        confirmTransactionInitialTimeout: 30000,
+                        wsEndpoint: undefined
+                    });
+                    
+                    // Timeout più lungo per fallback endpoints
+                    const timeoutPromise = new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Timeout')), 12000)
+                    );
+                    
+                    const blockhashPromise = connection.getLatestBlockhash('confirmed');
+                    
+                    const { blockhash, lastValidBlockHeight } = await Promise.race([
+                        blockhashPromise,
+                        timeoutPromise
+                    ]);
+                    
+                    console.log(`✅ SUCCESS with fallback endpoint: ${endpoint}`);
+                    console.log(`📦 Blockhash: ${blockhash.substring(0, 20)}...`);
+                    
+                    return { connection, blockhash, lastValidBlockHeight };
+                    
+                } catch (error) {
+                    const errorMsg = `${endpoint}: ${error.message}`;
+                    errors.push(errorMsg);
+                    console.warn(`❌ Fallback ${i + 1} failed: ${errorMsg}`);
+                    
+                    // Pausa più lunga per fallback endpoints
+                    if (i < RPC_ENDPOINTS.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 1500));
+                    }
+                }
+            }
+            
+            // Se tutto fallisce, prova una connessione diretta tramite Phantom
+            console.log('🔄 All public RPCs failed, trying Phantom connection...');
+            try {
+                if (window.phantom?.solana) {
+                    // Usa l'RPC di Phantom se disponibile
+                    const phantomConnection = new solanaWeb3.Connection('https://solana-mainnet.phantom.app/YBPpkkN', {
+                        commitment: 'confirmed'
+                    });
+                    
+                    const { blockhash, lastValidBlockHeight } = await phantomConnection.getLatestBlockhash('confirmed');
+                    console.log('✅ SUCCESS with Phantom RPC');
+                    return { connection: phantomConnection, blockhash, lastValidBlockHeight };
+                }
+            } catch (phantomError) {
+                errors.push(`Phantom RPC: ${phantomError.message}`);
+                console.warn('❌ Phantom RPC also failed:', phantomError.message);
+            }
+            
+            // Ultimo tentativo: endpoint custom con configurazione minima
+            console.log('🔄 Last resort: trying minimal configuration...');
+            try {
+                const lastResortConnection = new solanaWeb3.Connection('https://api.mainnet-beta.solana.com', 'confirmed');
+                const result = await lastResortConnection.getLatestBlockhash();
+                console.log('✅ SUCCESS with minimal config');
+                return { 
+                    connection: lastResortConnection, 
+                    blockhash: result.blockhash, 
+                    lastValidBlockHeight: result.lastValidBlockHeight 
+                };
+            } catch (lastError) {
+                errors.push(`Last resort: ${lastError.message}`);
+            }
+            
+            // Se proprio tutto fallisce
+            console.error('🚨 ALL RPC endpoints failed:', errors);
+            
+            // Messaggio di errore più user-friendly
+            const isRateLimited = errors.some(e => e.includes('403') || e.includes('rate limit') || e.includes('forbidden'));
+            const isNetworkIssue = errors.some(e => e.includes('Failed to fetch') || e.includes('network'));
+            
+            let errorMessage = 'Impossibile connettersi alla rete Solana.';
+            
+            if (isRateLimited) {
+                errorMessage = `
+                    🚫 I servizi RPC pubblici sono temporaneamente sovraccarichi.
+                    
+                    Possibili soluzioni:
+                    1️⃣ Riprova tra 2-3 minuti
+                    2️⃣ Cambia rete in Phantom: Settings → Developer Settings → Change Network → Custom RPC
+                    3️⃣ Usa un endpoint personalizzato: https://api.mainnet-beta.solana.com
+                    
+                    Gli endpoint pubblici hanno limiti di utilizzo che potrebbero essere stati raggiunti.
+                `;
+            } else if (isNetworkIssue) {
+                errorMessage = `
+                    🌐 Problema di connessione di rete.
+                    
+                    Verifica:
+                    1️⃣ La tua connessione internet
+                    2️⃣ Che non ci siano firewall che bloccano la connessione
+                    3️⃣ Prova a ricaricare la pagina
+                `;
+            } else {
+                errorMessage = `
+                    ⚠️ Problema tecnico temporaneo con i servizi blockchain.
+                    
+                    Dettagli tecnici: ${errors.slice(0, 2).join('; ')}
+                    
+                    Riprova tra qualche minuto o contatta il supporto.
+                `;
+            }
+            
+            throw new Error(errorMessage);
         }
 
         async function connectWallet() {
@@ -1485,22 +1619,32 @@
                 } else if (appState === 'awaiting_creation') {
                     await handleCreationStep(provider);
                 }
-            } catch (error) {
-                console.error('Errore nel form:', error);
-                updateStatus(error.message, 'error');
-                resetButton();
-                
-                // Mostra errore dettagliato per problemi di connessione
-                if (error.message.includes('endpoint RPC') || error.message.includes('blockchain')) {
-                    await Swal.fire({
-                        title: 'Problema di Connessione',
-                        text: error.message,
-                        icon: 'error',
-                        confirmButtonText: 'Riprova',
-                        footer: '<small>Se il problema persiste, controlla la tua connessione internet</small>'
-                    });
-                }
-            }
+                try {
+                    console.error('Errore nel form:', error);
+                    updateStatus(error.message, 'error');
+                    resetButton();
+                    
+                    // Mostra errore dettagliato per problemi di connessione
+                    if (error.message.includes('endpoint RPC') || error.message.includes('blockchain') || error.message.includes('sovraccarichi')) {
+                        const result = await Swal.fire({
+                            title: 'Problema di Connessione RPC',
+                            html: `
+                                <div style="text-align: left;">
+                                    <p>${error.message.replace(/\n/g, '<br>')}</p>
+                                </div>
+                            `,
+                            icon: 'error',
+                            showCancelButton: true,
+                            confirmButtonText: '🔧 Configura RPC Custom',
+                            cancelButtonText: 'Riprova',
+                            footer: '<small>Gli RPC pubblici possono avere limiti di utilizzo</small>'
+                        });
+                        
+                        if (result.isConfirmed) {
+                            await showCustomRPCDialog();
+                        }
+                    }
+                } catch (error) {
         });
 
         // --- PASSO 1: GESTIONE PAGAMENTO CON RETRY AUTOMATICO ---
@@ -2149,7 +2293,85 @@
             e.preventDefault();
         });
 
-        // --- CONNECTION HEALTH CHECK ---
+        // --- CONFIGURAZIONE RPC PERSONALIZZATO ---
+        async function showCustomRPCDialog() {
+            const { value: customRPC } = await Swal.fire({
+                title: '🔧 Configura RPC Personalizzato',
+                html: `
+                    <div style="text-align: left; margin: 20px 0;">
+                        <p><strong>Endpoint RPC consigliati:</strong></p>
+                        <ul style="margin: 10px 0; padding-left: 20px;">
+                            <li><code>https://api.mainnet-beta.solana.com</code></li>
+                            <li><code>https://solana-api.projectserum.com</code></li>
+                            <li><code>https://solana.public-rpc.com</code></li>
+                        </ul>
+                        <p><strong>O inserisci il tuo RPC personalizzato:</strong></p>
+                    </div>
+                `,
+                input: 'url',
+                inputValue: 'https://api.mainnet-beta.solana.com',
+                inputPlaceholder: 'Inserisci URL RPC...',
+                showCancelButton: true,
+                confirmButtonText: 'Usa questo RPC',
+                cancelButtonText: 'Annulla',
+                inputValidator: (value) => {
+                    if (!value) {
+                        return 'Inserisci un URL RPC valido';
+                    }
+                    if (!value.startsWith('http')) {
+                        return 'L\'URL deve iniziare con http:// o https://';
+                    }
+                    return null;
+                }
+            });
+
+            if (customRPC) {
+                console.log('🔧 Configurazione RPC personalizzato:', customRPC);
+                
+                // Testa il custom RPC
+                try {
+                    updateStatus('🔍 Test del RPC personalizzato...');
+                    
+                    const testConnection = new solanaWeb3.Connection(customRPC, {
+                        commitment: 'confirmed',
+                        confirmTransactionInitialTimeout: 30000
+                    });
+                    
+                    const testResult = await Promise.race([
+                        testConnection.getLatestBlockhash('confirmed'),
+                        new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error('Timeout')), 10000)
+                        )
+                    ]);
+                    
+                    console.log('✅ RPC personalizzato funziona!');
+                    
+                    // Aggiungi il custom RPC in cima alla lista
+                    RPC_ENDPOINTS.unshift(customRPC);
+                    
+                    await Swal.fire({
+                        title: 'RPC Configurato!',
+                        text: `Il tuo RPC personalizzato è stato configurato e testato con successo. Prova ora a procedere con il pagamento.`,
+                        icon: 'success',
+                        confirmButtonText: 'Continua'
+                    });
+                    
+                    updateStatus('Passo 1: RPC personalizzato configurato. Completa il form e procedi.');
+                    
+                } catch (error) {
+                    console.error('❌ Test RPC personalizzato fallito:', error);
+                    
+                    await Swal.fire({
+                        title: 'RPC Non Funzionante',
+                        text: `Il RPC personalizzato non risponde correttamente: ${error.message}`,
+                        icon: 'error',
+                        confirmButtonText: 'Riprova'
+                    });
+                }
+            }
+        }
+
+        // --- HEALTH CHECK INTELLIGENTE ---
         
         // Periodic health check per gli endpoint RPC
         let healthCheckInterval;
