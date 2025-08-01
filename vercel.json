@@ -39,21 +39,6 @@
           "value": "Content-Type, Authorization"
         }
       ]
-    },
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Robots-Tag",
-          "value": "noindex, nofollow"
-        }
-      ],
-      "has": [
-        {
-          "type": "host",
-          "value": "galaxy-launch.vercel.app"
-        }
-      ]
     }
   ],
   "functions": {
@@ -72,4 +57,5 @@
     "api/get-blockhash.js": {
       "maxDuration": 15
     }
-  },
+  }
+}
