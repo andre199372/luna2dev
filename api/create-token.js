@@ -1,4 +1,4 @@
-// api/create-token.js - Production Implementation
+// api/create-token.js - Complete Production Version
 const { 
     Connection, 
     PublicKey, 
@@ -21,7 +21,7 @@ const {
 
 const {
     createCreateMetadataAccountV3Instruction,
-    PROGRAM_ID as METADATA_PROGRAM_ID
+    PROGRAM_ID: METADATA_PROGRAM_ID
 } = require('@metaplex-foundation/mpl-token-metadata');
 
 const bs58 = require('bs58');
@@ -36,9 +36,6 @@ const RPC_ENDPOINTS = [
     'https://api.mainnet-beta.solana.com',
     'https://solana-api.projectserum.com'
 ].filter(Boolean);
-
-// Server wallet for token creation (CRITICAL: Store securely in production)
-const SERVER_WALLET_PRIVATE_KEY = process.env.SERVER_WALLET_PRIVATE_KEY;
 
 // Rate limiting for token creation
 const creationAttempts = new Map();
@@ -129,12 +126,12 @@ async function createTokenWithFeatures(connection, config, payerPublicKey, metad
     console.log(`[TOKEN] Starting token creation for ${config.name} (${config.symbol})`);
     
     // Initialize server wallet
-    if (!SERVER_WALLET_PRIVATE_KEY) {
+    if (!process.env.SERVER_WALLET_PRIVATE_KEY) {
         throw new Error('Server wallet not configured. Contact administrator.');
     }
     
     const serverWallet = Keypair.fromSecretKey(
-        bs58.decode(SERVER_WALLET_PRIVATE_KEY)
+        bs58.decode(process.env.SERVER_WALLET_PRIVATE_KEY)
     );
     
     const payer = new PublicKey(payerPublicKey);
@@ -143,6 +140,16 @@ async function createTokenWithFeatures(connection, config, payerPublicKey, metad
     
     console.log(`[TOKEN] 🔑 Mint address: ${mint.toBase58()}`);
     console.log(`[TOKEN] 👤 Payer: ${payer.toBase58()}`);
+    console.log(`[TOKEN] 🏦 Server wallet: ${serverWallet.publicKey.toBase58()}`);
+    
+    // Check server wallet balance
+    const serverBalance = await connection.getBalance(serverWallet.publicKey);
+    const serverBalanceSOL = serverBalance / LAMPORTS_PER_SOL;
+    console.log(`[TOKEN] 💰 Server wallet balance: ${serverBalanceSOL} SOL`);
+    
+    if (serverBalanceSOL < 0.02) {
+        throw new Error(`Insufficient server wallet balance: ${serverBalanceSOL} SOL. Need at least 0.02 SOL.`);
+    }
     
     // Calculate rent exemption
     const mintRent = await connection.getMinimumBalanceForRentExemption(82); // Mint account size
@@ -174,10 +181,11 @@ async function createTokenWithFeatures(connection, config, payerPublicKey, metad
         freezeAuthority = payer;
     }
     
-    console.log(`[TOKEN] 🔐 Mint Authority: ${mintAuthority?.toBase58() || 'None (Revoked)'}`);
-    console.log(`[TOKEN] 🧊 Freeze Authority: ${freezeAuthority?.toBase58() || 'None (Revoked)'}`);
+    console.log(`[TOKEN] 🔐 Mint Authority: ${mintAuthority?.toBase58() || 'None (Will be revoked)'}`);
+    console.log(`[TOKEN] 🧊 Freeze Authority: ${freezeAuthority?.toBase58() || 'None'}`);
     console.log(`[TOKEN] ✏️ Update Authority: ${updateAuthority.toBase58()}`);
     
+    // Create transaction
     const transaction = new Transaction();
     
     // 1. Create mint account
@@ -192,15 +200,18 @@ async function createTokenWithFeatures(connection, config, payerPublicKey, metad
     );
     
     // 2. Initialize mint
+    const { 
+        createInitializeMintInstruction 
+    } = require('@solana/spl-token');
+    
     transaction.add(
-        createMint(
-            connection,
-            serverWallet,
-            mintAuthority || serverWallet.publicKey, // Temporary, will revoke later if needed
-            freezeAuthority,
+        createInitializeMintInstruction(
+            mint,
             config.decimals,
-            mintKeypair
-        ).instructions[0]
+            mintAuthority || serverWallet.publicKey,
+            freezeAuthority,
+            TOKEN_PROGRAM_ID
+        )
     );
     
     // 3. Create metadata account
@@ -216,87 +227,6 @@ async function createTokenWithFeatures(connection, config, payerPublicKey, metad
         )
     );
     
-    // 4. Create associated token account for payer
-    const payerTokenAccount = await getAssociatedTokenAddress(mint, payer);
-    
-    transaction.add(
-        createAssociatedTokenAccount(
-            serverWallet.publicKey,
-            payerTokenAccount,
-            payer,
-            mint
-        )
-    );
-    
-    // 5. Calculate token distribution
-    const totalSupply = BigInt(config.supply) * BigInt(10 ** config.decimals);
-    const teamTokens = config.teamPercentage ? 
-        (totalSupply * BigInt(config.teamPercentage)) / BigInt(100) : BigInt(0);
-    const marketingTokens = config.marketingPercentage ? 
-        (totalSupply * BigInt(config.marketingPercentage)) / BigInt(100) : BigInt(0);
-    const payerTokens = totalSupply - teamTokens - marketingTokens;
-    
-    console.log(`[TOKEN] 📊 Token Distribution:`);
-    console.log(`[TOKEN]   - Payer: ${payerTokens.toString()} tokens`);
-    console.log(`[TOKEN]   - Team: ${teamTokens.toString()} tokens`);
-    console.log(`[TOKEN]   - Marketing: ${marketingTokens.toString()} tokens`);
-    
-    // 6. Mint tokens to payer
-    if (payerTokens > 0) {
-        transaction.add(
-            mintTo(
-                connection,
-                serverWallet,
-                mint,
-                payerTokenAccount,
-                serverWallet.publicKey,
-                payerTokens
-            ).instructions[0]
-        );
-    }
-    
-    // 7. Handle team tokens
-    if (teamTokens > 0) {
-        transaction.add(
-            mintTo(
-                connection,
-                serverWallet,
-                mint,
-                payerTokenAccount, // Send to payer account (they can distribute)
-                serverWallet.publicKey,
-                teamTokens
-            ).instructions[0]
-        );
-    }
-    
-    // 8. Handle marketing tokens
-    if (marketingTokens > 0 && config.marketingWallet) {
-        const marketingWallet = new PublicKey(config.marketingWallet);
-        const marketingTokenAccount = await getAssociatedTokenAddress(mint, marketingWallet);
-        
-        // Create marketing token account
-        transaction.add(
-            createAssociatedTokenAccount(
-                serverWallet.publicKey,
-                marketingTokenAccount,
-                marketingWallet,
-                mint
-            )
-        );
-        
-        // Mint tokens to marketing account
-        transaction.add(
-            mintTo(
-                connection,
-                serverWallet,
-                mint,
-                marketingTokenAccount,
-                serverWallet.publicKey,
-                marketingTokens
-            ).instructions[0]
-        );
-    }
-    
     // Set transaction properties
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
@@ -305,7 +235,7 @@ async function createTokenWithFeatures(connection, config, payerPublicKey, metad
     // Sign transaction
     transaction.partialSign(serverWallet, mintKeypair);
     
-    console.log(`[TOKEN] 📝 Sending transaction...`);
+    console.log(`[TOKEN] 📝 Sending initial transaction...`);
     
     // Send and confirm transaction
     const signature = await connection.sendRawTransaction(transaction.serialize(), {
@@ -327,44 +257,136 @@ async function createTokenWithFeatures(connection, config, payerPublicKey, metad
         throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
     }
     
-    console.log(`[TOKEN] ✅ Transaction confirmed!`);
+    console.log(`[TOKEN] ✅ Mint and metadata created!`);
     
-    // Post-creation authority management
-    const authorityTransactions = [];
+    // 4. Create associated token account for payer and mint tokens
+    const payerTokenAccount = await getAssociatedTokenAddress(mint, payer);
     
-    // Revoke mint authority if not needed
-    if (!mintAuthority && config.authorityMode === 'revoke-all') {
-        const revokeTransaction = new Transaction().add(
-            setAuthority(
+    const mintTransaction = new Transaction();
+    
+    // Create ATA
+    const { 
+        createAssociatedTokenAccountInstruction 
+    } = require('@solana/spl-token');
+    
+    mintTransaction.add(
+        createAssociatedTokenAccountInstruction(
+            serverWallet.publicKey,
+            payerTokenAccount,
+            payer,
+            mint,
+            TOKEN_PROGRAM_ID,
+            ASSOCIATED_TOKEN_PROGRAM_ID
+        )
+    );
+    
+    // Calculate token distribution
+    const totalSupply = BigInt(config.supply) * BigInt(10 ** config.decimals);
+    const teamTokens = config.teamPercentage ? 
+        (totalSupply * BigInt(config.teamPercentage)) / BigInt(100) : BigInt(0);
+    const marketingTokens = config.marketingPercentage ? 
+        (totalSupply * BigInt(config.marketingPercentage)) / BigInt(100) : BigInt(0);
+    const payerTokens = totalSupply - teamTokens - marketingTokens;
+    
+    console.log(`[TOKEN] 📊 Token Distribution:`);
+    console.log(`[TOKEN]   - Payer: ${payerTokens.toString()} tokens`);
+    console.log(`[TOKEN]   - Team: ${teamTokens.toString()} tokens`);
+    console.log(`[TOKEN]   - Marketing: ${marketingTokens.toString()} tokens`);
+    
+    // Mint tokens to payer (includes team tokens for now)
+    const totalPayerTokens = payerTokens + teamTokens;
+    if (totalPayerTokens > 0) {
+        const { createMintToInstruction } = require('@solana/spl-token');
+        
+        mintTransaction.add(
+            createMintToInstruction(
                 mint,
+                payerTokenAccount,
                 serverWallet.publicKey,
-                AuthorityType.MintTokens,
-                null // Revoke by setting to null
+                totalPayerTokens,
+                [],
+                TOKEN_PROGRAM_ID
+            )
+        );
+    }
+    
+    // Handle marketing tokens if specified
+    let marketingTokenAccount = null;
+    if (marketingTokens > 0 && config.marketingWallet) {
+        const marketingWallet = new PublicKey(config.marketingWallet);
+        marketingTokenAccount = await getAssociatedTokenAddress(mint, marketingWallet);
+        
+        // Create marketing ATA
+        mintTransaction.add(
+            createAssociatedTokenAccountInstruction(
+                serverWallet.publicKey,
+                marketingTokenAccount,
+                marketingWallet,
+                mint,
+                TOKEN_PROGRAM_ID,
+                ASSOCIATED_TOKEN_PROGRAM_ID
             )
         );
         
-        revokeTransaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-        revokeTransaction.feePayer = serverWallet.publicKey;
-        revokeTransaction.partialSign(serverWallet);
-        
-        authorityTransactions.push(revokeTransaction);
+        // Mint tokens to marketing account
+        mintTransaction.add(
+            createMintToInstruction(
+                mint,
+                marketingTokenAccount,
+                serverWallet.publicKey,
+                marketingTokens,
+                [],
+                TOKEN_PROGRAM_ID
+            )
+        );
     }
     
-    // Transfer update authority if needed
-    if (updateAuthority.toBase58() !== serverWallet.publicKey.toBase58()) {
-        // Note: Metadata update authority transfer requires separate instruction
-        // This would need additional Metaplex instruction implementation
-        console.log(`[TOKEN] ⚠️ Update authority transfer to ${updateAuthority.toBase58()} - manual step required`);
-    }
+    // Set transaction properties
+    const { blockhash: mintBlockhash } = await connection.getLatestBlockhash();
+    mintTransaction.recentBlockhash = mintBlockhash;
+    mintTransaction.feePayer = serverWallet.publicKey;
+    mintTransaction.partialSign(serverWallet);
     
-    // Execute authority transactions
-    for (const authTx of authorityTransactions) {
+    console.log(`[TOKEN] 📝 Sending minting transaction...`);
+    
+    // Send minting transaction
+    const mintSignature = await connection.sendRawTransaction(mintTransaction.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+        maxRetries: 3
+    });
+    
+    await connection.confirmTransaction(mintSignature, 'confirmed');
+    console.log(`[TOKEN] ✅ Tokens minted: ${mintSignature}`);
+    
+    // Revoke mint authority if requested
+    if (config.authorityMode === 'revoke-all') {
         try {
-            const authSig = await connection.sendRawTransaction(authTx.serialize());
-            await connection.confirmTransaction(authSig, 'confirmed');
-            console.log(`[TOKEN] 🔐 Authority transaction confirmed: ${authSig}`);
+            const revokeTransaction = new Transaction();
+            const { createSetAuthorityInstruction } = require('@solana/spl-token');
+            
+            revokeTransaction.add(
+                createSetAuthorityInstruction(
+                    mint,
+                    serverWallet.publicKey,
+                    AuthorityType.MintTokens,
+                    null,
+                    [],
+                    TOKEN_PROGRAM_ID
+                )
+            );
+            
+            const { blockhash: revokeBlockhash } = await connection.getLatestBlockhash();
+            revokeTransaction.recentBlockhash = revokeBlockhash;
+            revokeTransaction.feePayer = serverWallet.publicKey;
+            revokeTransaction.partialSign(serverWallet);
+            
+            const revokeSignature = await connection.sendRawTransaction(revokeTransaction.serialize());
+            await connection.confirmTransaction(revokeSignature, 'confirmed');
+            
+            console.log(`[TOKEN] 🔐 Mint authority revoked: ${revokeSignature}`);
         } catch (error) {
-            console.warn(`[TOKEN] ⚠️ Authority transaction failed: ${error.message}`);
+            console.warn(`[TOKEN] ⚠️ Failed to revoke mint authority: ${error.message}`);
         }
     }
     
@@ -373,13 +395,13 @@ async function createTokenWithFeatures(connection, config, payerPublicKey, metad
     return {
         mintAddress: mint.toBase58(),
         signature,
+        mintSignature,
         payerTokenAccount: payerTokenAccount.toBase58(),
-        marketingTokenAccount: marketingTokens > 0 && config.marketingWallet ? 
-            (await getAssociatedTokenAddress(mint, new PublicKey(config.marketingWallet))).toBase58() : null,
+        marketingTokenAccount: marketingTokenAccount?.toBase58() || null,
         totalSupply: config.supply,
         decimals: config.decimals,
         authorities: {
-            mint: mintAuthority?.toBase58() || null,
+            mint: config.authorityMode === 'revoke-all' ? null : mintAuthority?.toBase58() || serverWallet.publicKey.toBase58(),
             freeze: freezeAuthority?.toBase58() || null,
             update: updateAuthority.toBase58()
         }
@@ -474,40 +496,6 @@ module.exports = async (req, res) => {
             }
         }
         
-        // Validate authority addresses if provided
-        if (config.customMintAuthority) {
-            try {
-                new PublicKey(config.customMintAuthority);
-            } catch (error) {
-                return res.status(400).json({ 
-                    success: false, 
-                    error: 'Invalid custom mint authority address' 
-                });
-            }
-        }
-        
-        if (config.customFreezeAuthority) {
-            try {
-                new PublicKey(config.customFreezeAuthority);
-            } catch (error) {
-                return res.status(400).json({ 
-                    success: false, 
-                    error: 'Invalid custom freeze authority address' 
-                });
-            }
-        }
-        
-        if (config.customUpdateAuthority) {
-            try {
-                new PublicKey(config.customUpdateAuthority);
-            } catch (error) {
-                return res.status(400).json({ 
-                    success: false, 
-                    error: 'Invalid custom update authority address' 
-                });
-            }
-        }
-        
         console.log(`[TOKEN] 🚀 Starting token creation process`);
         console.log(`[TOKEN] 📋 Config:`, {
             name: config.name,
@@ -532,6 +520,7 @@ module.exports = async (req, res) => {
             data: {
                 mintAddress: result.mintAddress,
                 signature: result.signature,
+                mintSignature: result.mintSignature,
                 explorerUrl: `https://solscan.io/token/${result.mintAddress}`,
                 solscanUrl: `https://solscan.io/tx/${result.signature}`,
                 payerTokenAccount: result.payerTokenAccount,
@@ -554,13 +543,13 @@ module.exports = async (req, res) => {
         let statusCode = 500;
         
         // Handle specific error types
-        if (error.message.includes('insufficient funds')) {
+        if (error.message.includes('insufficient funds') || error.message.includes('Insufficient server wallet balance')) {
             errorMessage = 'Insufficient SOL in server wallet. Please contact administrator.';
             statusCode = 503;
         } else if (error.message.includes('Invalid public key')) {
             errorMessage = 'Invalid address format provided.';
             statusCode = 400;
-        } else if (error.message.includes('RPC')) {
+        } else if (error.message.includes('RPC') || error.message.includes('network')) {
             errorMessage = 'Blockchain network error. Please try again in a few minutes.';
             statusCode = 503;
         } else if (error.message.includes('Server wallet not configured')) {
