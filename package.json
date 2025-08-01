@@ -10,7 +10,9 @@
     "start": "vercel dev",
     "test": "echo 'No tests specified'",
     "lint": "echo 'No linting configured'",
-    "generate-wallet": "node -e \"const {Keypair} = require('@solana/web3.js'); const bs58 = require('bs58'); const kp = Keypair.generate(); console.log('Public Key:', kp.publicKey.toBase58()); console.log('Private Key (base58):', bs58.encode(kp.secretKey));\""
+    "generate-wallet": "node -e \"const {Keypair} = require('@solana/web3.js'); const bs58 = require('bs58'); const kp = Keypair.generate(); console.log('Public Key:', kp.publicKey.toBase58()); console.log('Private Key (base58):', bs58.encode(kp.secretKey));\"",
+    "install-fix": "npm uninstall @metaplex-foundation/mpl-token-metadata @solana/spl-token @solana/web3.js && npm install",
+    "check-versions": "npm list @solana/web3.js @solana/spl-token @metaplex-foundation/mpl-token-metadata"
   },
   "keywords": [
     "solana",
@@ -41,9 +43,9 @@
     "url": "https://github.com/yourusername/galaxy-launch/issues"
   },
   "dependencies": {
-    "@solana/web3.js": "^1.91.8",
-    "@solana/spl-token": "^0.3.11",
-    "@metaplex-foundation/mpl-token-metadata": "^3.2.1",
+    "@solana/web3.js": "^1.87.6",
+    "@solana/spl-token": "^0.3.8",
+    "@metaplex-foundation/mpl-token-metadata": "^2.13.0",
     "axios": "^1.7.2",
     "form-data": "^4.0.0",
     "bs58": "^5.0.0"
@@ -71,5 +73,13 @@
   "funding": {
     "type": "individual",
     "url": "https://github.com/sponsors/yourusername"
+  },
+  "overrides": {
+    "@solana/web3.js": "^1.87.6",
+    "@solana/spl-token": "^0.3.8"
+  },
+  "resolutions": {
+    "@solana/web3.js": "^1.87.6",
+    "@solana/spl-token": "^0.3.8"
   }
 }
