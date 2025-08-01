@@ -1,54 +1,61 @@
 {
-      "rewrites": [
-        {
-          "source": "/api/upload-metadata",
-          "destination": "/api/upload-metadata.js"
-        },
-        {
-          "source": "/api/verify-payment", 
-          "destination": "/api/verify-payment.js"
-        },
-        {
-          "source": "/api/create-token",
-          "destination": "/api/create-token.js"
-        },
-        {
-          "source": "/api/get-balance",
-          "destination": "/api/get-balance.js"
-        },
-        {
-          "source": "/api/get-blockhash",
-          "destination": "/api/get-blockhash.js"
-        }
-      ],
+  "rewrites": [
+    {
+      "source": "/api/upload-metadata",
+      "destination": "/api/upload-metadata.js"
+    },
+    {
+      "source": "/api/verify-payment", 
+      "destination": "/api/verify-payment.js"
+    },
+    {
+      "source": "/api/create-token",
+      "destination": "/api/create-token.js"
+    },
+    {
+      "source": "/api/get-balance",
+      "destination": "/api/get-balance.js"
+    },
+    {
+      "source": "/api/get-blockhash",
+      "destination": "/api/get-blockhash.js"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
       "headers": [
         {
-          "source": "/api/(.*)",
-          "headers": [
-            {
-              "key": "Access-Control-Allow-Origin",
-              "value": "*"
-            },
-            {
-              "key": "Access-Control-Allow-Methods",
-              "value": "GET, POST, PUT, DELETE, OPTIONS"
-            },
-            {
-              "key": "Access-Control-Allow-Headers",
-              "value": "Content-Type, Authorization"
-            }
-          ]
-        }
-      ],
-      "functions": {
-        "api/upload-metadata.js": {
-          "maxDuration": 30
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
         },
-        "api/verify-payment.js": {
-          "maxDuration": 60
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
         },
-        "api/create-token.js": {
-          "maxDuration": 120
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
         }
-      }
+      ]
     }
+  ],
+  "functions": {
+    "api/upload-metadata.js": {
+      "maxDuration": 30
+    },
+    "api/verify-payment.js": {
+      "maxDuration": 60
+    },
+    "api/create-token.js": {
+      "maxDuration": 120
+    }
+  },
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "destination": "https://galaxylaunch.xyz/$1",
+      "permanent": true
+    }
+  ]
+}
