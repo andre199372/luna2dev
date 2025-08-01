@@ -1,25 +1,75 @@
 {
-      "name": "galaxy-launch-token-creator",
-      "version": "2.0.0",
-      "description": "Solana SPL Token Creator with Complete Features on Vercel",
-      "main": "index.html",
-      "scripts": {
-        "dev": "vercel dev",
-        "build": "echo 'Static files ready'",
-        "deploy": "vercel --prod"
-      },
-      "dependencies": {
-        "@solana/web3.js": "^1.91.8",
-        "@solana/spl-token": "^0.3.11",
-        "@metaplex-foundation/mpl-token-metadata": "^3.2.1",
-        "axios": "^1.7.2",
-        "form-data": "^4.0.0",
-        "bs58": "^5.0.0"
-      },
-      "devDependencies": {
-        "vercel": "^32.0.0"
-      },
-      "engines": {
-        "node": ">=18.0.0"
-      }
-    }
+  "name": "galaxy-launch-token-creator",
+  "version": "3.0.0",
+  "description": "Professional Solana SPL Token Creator with Complete Features - Production Ready",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Static files ready for Vercel deployment'",
+    "deploy": "vercel --prod",
+    "start": "vercel dev",
+    "test": "echo 'No tests specified'",
+    "lint": "echo 'No linting configured'",
+    "generate-wallet": "node -e \"const {Keypair} = require('@solana/web3.js'); const bs58 = require('bs58'); const kp = Keypair.generate(); console.log('Public Key:', kp.publicKey.toBase58()); console.log('Private Key (base58):', bs58.encode(kp.secretKey));\""
+  },
+  "keywords": [
+    "solana",
+    "token",
+    "creator",
+    "spl",
+    "blockchain",
+    "crypto",
+    "defi",
+    "metaplex",
+    "ipfs",
+    "web3",
+    "dapp",
+    "vercel",
+    "serverless"
+  ],
+  "author": {
+    "name": "Galaxy Launch Team",
+    "url": "https://galaxylaunch.vercel.app"
+  },
+  "license": "MIT",
+  "homepage": "https://galaxylaunch.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/galaxy-launch.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/galaxy-launch/issues"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.91.8",
+    "@solana/spl-token": "^0.3.11",
+    "@metaplex-foundation/mpl-token-metadata": "^3.2.1",
+    "axios": "^1.7.2",
+    "form-data": "^4.0.0",
+    "bs58": "^5.0.0"
+  },
+  "devDependencies": {
+    "vercel": "^32.0.0",
+    "@types/node": "^20.10.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "funding": {
+    "type": "individual",
+    "url": "https://github.com/sponsors/yourusername"
+  }
+}
