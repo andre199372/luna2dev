@@ -23,10 +23,10 @@ const {
     createSetAuthorityInstruction
 } = require('@solana/spl-token');
 
-// Fixed import for Metaplex
+// Fixed import for Metaplex - using CommonJS syntax
 const {
     createCreateMetadataAccountV3Instruction,
-    PROGRAM_ID as METADATA_PROGRAM_ID
+    PROGRAM_ID: METADATA_PROGRAM_ID
 } = require('@metaplex-foundation/mpl-token-metadata');
 
 const bs58 = require('bs58');
