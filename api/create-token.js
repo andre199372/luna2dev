@@ -519,6 +519,21 @@ module.exports = async (req, res) => {
         res.status(200).json({
             success: true,
             message: 'Token creato con successo',
+            mintAddress: result.mintAddress,
+            signature: result.signature,
+            mintSignature: result.mintSignature,
+            explorerUrl: `https://solscan.io/token/${result.mintAddress}`,
+            solscanUrl: `https://solscan.io/tx/${result.signature}`,
+            payerTokenAccount: result.payerTokenAccount,
+            marketingTokenAccount: result.marketingTokenAccount,
+            totalSupply: result.totalSupply,
+            decimals: result.decimals,
+            authorities: result.authorities,
+            metadata: {
+                name: config.name,
+                symbol: config.symbol,
+                metadataUrl: metadataUrl
+            },
             data: {
                 mintAddress: result.mintAddress,
                 signature: result.signature,
