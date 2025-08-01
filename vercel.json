@@ -1,12 +1,11 @@
 {
-  "version": 2,
   "rewrites": [
     {
       "source": "/api/upload-metadata",
       "destination": "/api/upload-metadata.js"
     },
     {
-      "source": "/api/verify-payment", 
+      "source": "/api/verify-payment",
       "destination": "/api/verify-payment.js"
     },
     {
@@ -22,6 +21,25 @@
       "destination": "/api/get-blockhash.js"
     }
   ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        }
+      ]
+    }
+  ],
   "functions": {
     "api/upload-metadata.js": {
       "maxDuration": 30
@@ -31,12 +49,6 @@
     },
     "api/create-token.js": {
       "maxDuration": 120
-    },
-    "api/get-balance.js": {
-      "maxDuration": 15
-    },
-    "api/get-blockhash.js": {
-      "maxDuration": 15
     }
   }
 }
