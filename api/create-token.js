@@ -23,18 +23,27 @@ const {
     createSetAuthorityInstruction
 } = require('@solana/spl-token');
 
-// Fixed import for Metaplex - using CommonJS syntax
+// Import for @metaplex-foundation/mpl-token-metadata v3.x
 const {
     createCreateMetadataAccountV3Instruction,
-    PROGRAM_ID: METADATA_PROGRAM_ID
+    PROGRAM_ID: TOKEN_METADATA_PROGRAM_ID
 } = require('@metaplex-foundation/mpl-token-metadata');
+
+// Fallback for different versions
+let METADATA_PROGRAM_ID;
+try {
+    METADATA_PROGRAM_ID = TOKEN_METADATA_PROGRAM_ID;
+} catch (e) {
+    // Try alternative import for older versions
+    const mplTokenMetadata = require('@metaplex-foundation/mpl-token-metadata');
+    METADATA_PROGRAM_ID = mplTokenMetadata.PROGRAM_ID || mplTokenMetadata.TOKEN_METADATA_PROGRAM_ID;
+}
 
 const bs58 = require('bs58');
 
-// If the above import doesn't work, try this alternative:
-// const mplTokenMetadata = require('@metaplex-foundation/mpl-token-metadata');
-// const METADATA_PROGRAM_ID = mplTokenMetadata.PROGRAM_ID;
-// const createCreateMetadataAccountV3Instruction = mplTokenMetadata.createCreateMetadataAccountV3Instruction;
+// Debug the Metaplex import for v3.x
+console.log('[TOKEN] 🔍 METADATA_PROGRAM_ID:', METADATA_PROGRAM_ID?.toString());
+console.log('[TOKEN] 🔍 createCreateMetadataAccountV3Instruction available:', typeof createCreateMetadataAccountV3Instruction === 'function');
 
 // Production RPC endpoints with premium tiers
 const RPC_ENDPOINTS = [
@@ -98,9 +107,9 @@ async function getWorkingConnection() {
 
 function createMetadataInstruction(mint, metadata, updateAuthority, metadataUrl) {
     // Debug logging
-    console.log('[TOKEN] 🔍 METADATA_PROGRAM_ID:', METADATA_PROGRAM_ID);
-    console.log('[TOKEN] 🔍 mint:', mint);
-    console.log('[TOKEN] 🔍 updateAuthority:', updateAuthority);
+    console.log('[TOKEN] 🔍 METADATA_PROGRAM_ID:', METADATA_PROGRAM_ID?.toString());
+    console.log('[TOKEN] 🔍 mint:', mint.toString());
+    console.log('[TOKEN] 🔍 updateAuthority:', updateAuthority.toString());
     
     // Check if METADATA_PROGRAM_ID is defined
     if (!METADATA_PROGRAM_ID) {
@@ -110,22 +119,52 @@ function createMetadataInstruction(mint, metadata, updateAuthority, metadataUrl)
     const [metadataPDA] = PublicKey.findProgramAddressSync(
         [
             Buffer.from('metadata'),
-            METADATA_PROGRAM_ID.toBuffer(), // Use toBuffer() instead of toBytes()
+            METADATA_PROGRAM_ID.toBuffer(),
             mint.toBuffer(),
         ],
         METADATA_PROGRAM_ID
     );
 
-    return createCreateMetadataAccountV3Instruction(
-        {
-            metadata: metadataPDA,
-            mint: mint,
-            mintAuthority: updateAuthority,
-            payer: updateAuthority,
-            updateAuthority: updateAuthority,
-        },
-        {
-            createMetadataAccountArgsV3: {
+    // For v3.x, the instruction structure might be different
+    try {
+        return createCreateMetadataAccountV3Instruction(
+            {
+                metadata: metadataPDA,
+                mint: mint,
+                mintAuthority: updateAuthority,
+                payer: updateAuthority,
+                updateAuthority: updateAuthority,
+            },
+            {
+                createMetadataAccountArgsV3: {
+                    data: {
+                        name: metadata.name,
+                        symbol: metadata.symbol,
+                        uri: metadataUrl,
+                        sellerFeeBasisPoints: 0,
+                        creators: null,
+                        collection: null,
+                        uses: null,
+                    },
+                    isMutable: true,
+                    collectionDetails: null,
+                },
+            }
+        );
+    } catch (error) {
+        console.error('[TOKEN] ❌ Error creating metadata instruction:', error);
+        // Try alternative structure for v3.x
+        return createCreateMetadataAccountV3Instruction(
+            {
+                metadata: metadataPDA,
+                mint: mint,
+                mintAuthority: updateAuthority,
+                payer: updateAuthority,
+                updateAuthority: updateAuthority,
+                systemProgram: SystemProgram.programId,
+                rent: new PublicKey('SysvarRent111111111111111111111111111111111'),
+            },
+            {
                 data: {
                     name: metadata.name,
                     symbol: metadata.symbol,
@@ -137,9 +176,9 @@ function createMetadataInstruction(mint, metadata, updateAuthority, metadataUrl)
                 },
                 isMutable: true,
                 collectionDetails: null,
-            },
-        }
-    );
+            }
+        );
+    }
 }
 
 async function createTokenWithFeatures(connection, config, payerPublicKey, metadataUrl) {
