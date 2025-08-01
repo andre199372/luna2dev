@@ -73,17 +73,3 @@
       "maxDuration": 15
     }
   },
-  "redirects": [
-    {
-      "source": "/(.*)",
-      "has": [
-        {
-          "type": "host",
-          "value": "galaxy-launch.vercel.app"
-        }
-      ],
-      "destination": "https://galaxylaunch.xyz/$1",
-      "permanent": true
-    }
-  ]
-}
