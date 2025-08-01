@@ -1,6 +1,4 @@
 {
-  "files": {
-    "vercel.json": {
       "rewrites": [
         {
           "source": "/api/upload-metadata",
