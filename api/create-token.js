@@ -1,4 +1,4 @@
-// api/create-token.js - Fixed Version
+// api/create-token.js - Versione compatibile con Metaplex v2.x
 const { 
     Connection, 
     PublicKey, 
@@ -9,43 +9,27 @@ const {
 } = require('@solana/web3.js');
 
 const { 
-    createMint, 
-    createAssociatedTokenAccount, 
-    mintTo, 
-    getAssociatedTokenAddress,
-    setAuthority,
-    AuthorityType,
-    TOKEN_PROGRAM_ID,
-    ASSOCIATED_TOKEN_PROGRAM_ID,
     createInitializeMintInstruction,
     createAssociatedTokenAccountInstruction,
     createMintToInstruction,
-    createSetAuthorityInstruction
+    createSetAuthorityInstruction,
+    getAssociatedTokenAddress,
+    AuthorityType,
+    TOKEN_PROGRAM_ID,
+    ASSOCIATED_TOKEN_PROGRAM_ID
 } = require('@solana/spl-token');
 
-// Import for @metaplex-foundation/mpl-token-metadata v3.x
+// Import Metaplex v2.x (versione stabile)
 const {
     createCreateMetadataAccountV3Instruction,
-    PROGRAM_ID: TOKEN_METADATA_PROGRAM_ID
+    PROGRAM_ID: METADATA_PROGRAM_ID
 } = require('@metaplex-foundation/mpl-token-metadata');
-
-// Fallback for different versions
-let METADATA_PROGRAM_ID;
-try {
-    METADATA_PROGRAM_ID = TOKEN_METADATA_PROGRAM_ID;
-} catch (e) {
-    // Try alternative import for older versions
-    const mplTokenMetadata = require('@metaplex-foundation/mpl-token-metadata');
-    METADATA_PROGRAM_ID = mplTokenMetadata.PROGRAM_ID || mplTokenMetadata.TOKEN_METADATA_PROGRAM_ID;
-}
 
 const bs58 = require('bs58');
 
-// Debug the Metaplex import for v3.x
-console.log('[TOKEN] 🔍 METADATA_PROGRAM_ID:', METADATA_PROGRAM_ID?.toString());
-console.log('[TOKEN] 🔍 createCreateMetadataAccountV3Instruction available:', typeof createCreateMetadataAccountV3Instruction === 'function');
+console.log('[TOKEN] 🔍 Metaplex PROGRAM_ID:', METADATA_PROGRAM_ID?.toString());
 
-// Production RPC endpoints with premium tiers
+// RPC endpoints di produzione
 const RPC_ENDPOINTS = [
     process.env.HELIUS_API_KEY ? 
         `https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}` : null,
@@ -56,13 +40,13 @@ const RPC_ENDPOINTS = [
     'https://solana-api.projectserum.com'
 ].filter(Boolean);
 
-// Rate limiting for token creation
+// Rate limiting per la creazione di token
 const creationAttempts = new Map();
 
 function checkCreationRateLimit(ip) {
     const now = Date.now();
-    const windowMs = 300000; // 5 minutes
-    const maxCreations = 3; // Max 3 token creations per 5 minutes per IP
+    const windowMs = 300000; // 5 minuti
+    const maxCreations = 3; // Max 3 creazioni token per 5 minuti per IP
     
     if (!creationAttempts.has(ip)) {
         creationAttempts.set(ip, []);
@@ -91,31 +75,28 @@ async function getWorkingConnection() {
                 confirmTransactionInitialTimeout: 60000
             });
             
-            // Test connection
+            // Test connessione
             await connection.getLatestBlockhash();
-            console.log(`[TOKEN] ✅ Connected to ${endpoint}`);
+            console.log(`[TOKEN] ✅ Connesso a ${endpoint}`);
             return connection;
             
         } catch (error) {
             errors.push(`${endpoint}: ${error.message}`);
-            console.warn(`[TOKEN] ❌ Failed to connect to ${endpoint}`);
+            console.warn(`[TOKEN] ❌ Fallito connessione a ${endpoint}`);
         }
     }
     
-    throw new Error(`All RPC endpoints failed: ${errors.join('; ')}`);
+    throw new Error(`Tutti gli RPC endpoints sono falliti: ${errors.join('; ')}`);
 }
 
 function createMetadataInstruction(mint, metadata, updateAuthority, metadataUrl) {
-    // Debug logging
-    console.log('[TOKEN] 🔍 METADATA_PROGRAM_ID:', METADATA_PROGRAM_ID?.toString());
-    console.log('[TOKEN] 🔍 mint:', mint.toString());
-    console.log('[TOKEN] 🔍 updateAuthority:', updateAuthority.toString());
+    console.log('[TOKEN] 🔧 Creazione istruzione metadata');
     
-    // Check if METADATA_PROGRAM_ID is defined
     if (!METADATA_PROGRAM_ID) {
-        throw new Error('METADATA_PROGRAM_ID is undefined. Check @metaplex-foundation/mpl-token-metadata import.');
+        throw new Error('METADATA_PROGRAM_ID non definito. Controlla l\'import di Metaplex.');
     }
     
+    // Trova il PDA per l'account metadata
     const [metadataPDA] = PublicKey.findProgramAddressSync(
         [
             Buffer.from('metadata'),
@@ -125,46 +106,19 @@ function createMetadataInstruction(mint, metadata, updateAuthority, metadataUrl)
         METADATA_PROGRAM_ID
     );
 
-    // For v3.x, the instruction structure might be different
-    try {
-        return createCreateMetadataAccountV3Instruction(
-            {
-                metadata: metadataPDA,
-                mint: mint,
-                mintAuthority: updateAuthority,
-                payer: updateAuthority,
-                updateAuthority: updateAuthority,
-            },
-            {
-                createMetadataAccountArgsV3: {
-                    data: {
-                        name: metadata.name,
-                        symbol: metadata.symbol,
-                        uri: metadataUrl,
-                        sellerFeeBasisPoints: 0,
-                        creators: null,
-                        collection: null,
-                        uses: null,
-                    },
-                    isMutable: true,
-                    collectionDetails: null,
-                },
-            }
-        );
-    } catch (error) {
-        console.error('[TOKEN] ❌ Error creating metadata instruction:', error);
-        // Try alternative structure for v3.x
-        return createCreateMetadataAccountV3Instruction(
-            {
-                metadata: metadataPDA,
-                mint: mint,
-                mintAuthority: updateAuthority,
-                payer: updateAuthority,
-                updateAuthority: updateAuthority,
-                systemProgram: SystemProgram.programId,
-                rent: new PublicKey('SysvarRent111111111111111111111111111111111'),
-            },
-            {
+    console.log('[TOKEN] 🔍 Metadata PDA:', metadataPDA.toString());
+
+    // Crea l'istruzione per Metaplex v2.x
+    return createCreateMetadataAccountV3Instruction(
+        {
+            metadata: metadataPDA,
+            mint: mint,
+            mintAuthority: updateAuthority,
+            payer: updateAuthority,
+            updateAuthority: updateAuthority,
+        },
+        {
+            createMetadataAccountArgsV3: {
                 data: {
                     name: metadata.name,
                     symbol: metadata.symbol,
@@ -176,17 +130,17 @@ function createMetadataInstruction(mint, metadata, updateAuthority, metadataUrl)
                 },
                 isMutable: true,
                 collectionDetails: null,
-            }
-        );
-    }
+            },
+        }
+    );
 }
 
 async function createTokenWithFeatures(connection, config, payerPublicKey, metadataUrl) {
-    console.log(`[TOKEN] Starting token creation for ${config.name} (${config.symbol})`);
+    console.log(`[TOKEN] Inizio creazione token per ${config.name} (${config.symbol})`);
     
-    // Initialize server wallet
+    // Inizializza server wallet
     if (!process.env.SERVER_WALLET_PRIVATE_KEY) {
-        throw new Error('Server wallet not configured. Contact administrator.');
+        throw new Error('Server wallet non configurato. Contatta l\'amministratore.');
     }
     
     const serverWallet = Keypair.fromSecretKey(
@@ -201,19 +155,19 @@ async function createTokenWithFeatures(connection, config, payerPublicKey, metad
     console.log(`[TOKEN] 👤 Payer: ${payer.toBase58()}`);
     console.log(`[TOKEN] 🏦 Server wallet: ${serverWallet.publicKey.toBase58()}`);
     
-    // Check server wallet balance
+    // Controlla saldo server wallet
     const serverBalance = await connection.getBalance(serverWallet.publicKey);
     const serverBalanceSOL = serverBalance / LAMPORTS_PER_SOL;
-    console.log(`[TOKEN] 💰 Server wallet balance: ${serverBalanceSOL} SOL`);
+    console.log(`[TOKEN] 💰 Saldo server wallet: ${serverBalanceSOL} SOL`);
     
     if (serverBalanceSOL < 0.02) {
-        throw new Error(`Insufficient server wallet balance: ${serverBalanceSOL} SOL. Need at least 0.02 SOL.`);
+        throw new Error(`Saldo server wallet insufficiente: ${serverBalanceSOL} SOL. Servono almeno 0.02 SOL.`);
     }
     
-    // Calculate rent exemption
-    const mintRent = await connection.getMinimumBalanceForRentExemption(82); // Mint account size
+    // Calcola rent exemption
+    const mintRent = await connection.getMinimumBalanceForRentExemption(82); // Dimensione account mint
     
-    // Determine authorities based on config
+    // Determina le autorità basate sulla config
     let mintAuthority = null;
     let freezeAuthority = null;
     let updateAuthority = serverWallet.publicKey;
@@ -232,7 +186,7 @@ async function createTokenWithFeatures(connection, config, payerPublicKey, metad
         }
     }
     
-    // Override with feature toggles
+    // Sovrascrivi con i toggle delle funzionalità
     if (config.mintAuthority) {
         mintAuthority = payer;
     }
@@ -240,14 +194,14 @@ async function createTokenWithFeatures(connection, config, payerPublicKey, metad
         freezeAuthority = payer;
     }
     
-    console.log(`[TOKEN] 🔐 Mint Authority: ${mintAuthority?.toBase58() || 'None (Will be revoked)'}`);
-    console.log(`[TOKEN] 🧊 Freeze Authority: ${freezeAuthority?.toBase58() || 'None'}`);
+    console.log(`[TOKEN] 🔐 Mint Authority: ${mintAuthority?.toBase58() || 'Nessuna (Sarà revocata)'}`);
+    console.log(`[TOKEN] 🧊 Freeze Authority: ${freezeAuthority?.toBase58() || 'Nessuna'}`);
     console.log(`[TOKEN] ✏️ Update Authority: ${updateAuthority.toBase58()}`);
     
-    // Create transaction
+    // Crea transazione
     const transaction = new Transaction();
     
-    // 1. Create mint account
+    // 1. Crea account mint
     transaction.add(
         SystemProgram.createAccount({
             fromPubkey: serverWallet.publicKey,
@@ -258,7 +212,7 @@ async function createTokenWithFeatures(connection, config, payerPublicKey, metad
         })
     );
     
-    // 2. Initialize mint
+    // 2. Inizializza mint
     transaction.add(
         createInitializeMintInstruction(
             mint,
@@ -269,7 +223,7 @@ async function createTokenWithFeatures(connection, config, payerPublicKey, metad
         )
     );
     
-    // 3. Create metadata account
+    // 3. Crea account metadata
     transaction.add(
         createMetadataInstruction(
             mint,
@@ -282,26 +236,26 @@ async function createTokenWithFeatures(connection, config, payerPublicKey, metad
         )
     );
     
-    // Set transaction properties
+    // Imposta proprietà transazione
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = serverWallet.publicKey;
     
-    // Sign transaction
+    // Firma transazione
     transaction.partialSign(serverWallet, mintKeypair);
     
-    console.log(`[TOKEN] 📝 Sending initial transaction...`);
+    console.log(`[TOKEN] 📝 Invio transazione iniziale...`);
     
-    // Send and confirm transaction
+    // Invia e conferma transazione
     const signature = await connection.sendRawTransaction(transaction.serialize(), {
         skipPreflight: false,
         preflightCommitment: 'confirmed',
         maxRetries: 3
     });
     
-    console.log(`[TOKEN] 📤 Transaction sent: ${signature}`);
+    console.log(`[TOKEN] 📤 Transazione inviata: ${signature}`);
     
-    // Wait for confirmation
+    // Aspetta conferma
     const confirmation = await connection.confirmTransaction({
         signature,
         blockhash,
@@ -309,17 +263,17 @@ async function createTokenWithFeatures(connection, config, payerPublicKey, metad
     }, 'confirmed');
     
     if (confirmation.value.err) {
-        throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+        throw new Error(`Transazione fallita: ${JSON.stringify(confirmation.value.err)}`);
     }
     
-    console.log(`[TOKEN] ✅ Mint and metadata created!`);
+    console.log(`[TOKEN] ✅ Mint e metadata creati!`);
     
-    // 4. Create associated token account for payer and mint tokens
+    // 4. Crea associated token account per payer e minta i token
     const payerTokenAccount = await getAssociatedTokenAddress(mint, payer);
     
     const mintTransaction = new Transaction();
     
-    // Create ATA
+    // Crea ATA
     mintTransaction.add(
         createAssociatedTokenAccountInstruction(
             serverWallet.publicKey,
@@ -331,7 +285,7 @@ async function createTokenWithFeatures(connection, config, payerPublicKey, metad
         )
     );
     
-    // Calculate token distribution
+    // Calcola distribuzione token
     const totalSupply = BigInt(config.supply) * BigInt(10 ** config.decimals);
     const teamTokens = config.teamPercentage ? 
         (totalSupply * BigInt(config.teamPercentage)) / BigInt(100) : BigInt(0);
@@ -339,12 +293,12 @@ async function createTokenWithFeatures(connection, config, payerPublicKey, metad
         (totalSupply * BigInt(config.marketingPercentage)) / BigInt(100) : BigInt(0);
     const payerTokens = totalSupply - teamTokens - marketingTokens;
     
-    console.log(`[TOKEN] 📊 Token Distribution:`);
-    console.log(`[TOKEN]   - Payer: ${payerTokens.toString()} tokens`);
-    console.log(`[TOKEN]   - Team: ${teamTokens.toString()} tokens`);
-    console.log(`[TOKEN]   - Marketing: ${marketingTokens.toString()} tokens`);
+    console.log(`[TOKEN] 📊 Distribuzione Token:`);
+    console.log(`[TOKEN]   - Payer: ${payerTokens.toString()} token`);
+    console.log(`[TOKEN]   - Team: ${teamTokens.toString()} token`);
+    console.log(`[TOKEN]   - Marketing: ${marketingTokens.toString()} token`);
     
-    // Mint tokens to payer (includes team tokens for now)
+    // Minta token al payer (include token team per ora)
     const totalPayerTokens = payerTokens + teamTokens;
     if (totalPayerTokens > 0) {
         mintTransaction.add(
@@ -359,13 +313,13 @@ async function createTokenWithFeatures(connection, config, payerPublicKey, metad
         );
     }
     
-    // Handle marketing tokens if specified
+    // Gestisci token marketing se specificato
     let marketingTokenAccount = null;
     if (marketingTokens > 0 && config.marketingWallet) {
         const marketingWallet = new PublicKey(config.marketingWallet);
         marketingTokenAccount = await getAssociatedTokenAddress(mint, marketingWallet);
         
-        // Create marketing ATA
+        // Crea ATA marketing
         mintTransaction.add(
             createAssociatedTokenAccountInstruction(
                 serverWallet.publicKey,
@@ -377,7 +331,7 @@ async function createTokenWithFeatures(connection, config, payerPublicKey, metad
             )
         );
         
-        // Mint tokens to marketing account
+        // Minta token all'account marketing
         mintTransaction.add(
             createMintToInstruction(
                 mint,
@@ -390,15 +344,15 @@ async function createTokenWithFeatures(connection, config, payerPublicKey, metad
         );
     }
     
-    // Set transaction properties
+    // Imposta proprietà transazione
     const { blockhash: mintBlockhash } = await connection.getLatestBlockhash();
     mintTransaction.recentBlockhash = mintBlockhash;
     mintTransaction.feePayer = serverWallet.publicKey;
     mintTransaction.partialSign(serverWallet);
     
-    console.log(`[TOKEN] 📝 Sending minting transaction...`);
+    console.log(`[TOKEN] 📝 Invio transazione minting...`);
     
-    // Send minting transaction
+    // Invia transazione minting
     const mintSignature = await connection.sendRawTransaction(mintTransaction.serialize(), {
         skipPreflight: false,
         preflightCommitment: 'confirmed',
@@ -406,9 +360,9 @@ async function createTokenWithFeatures(connection, config, payerPublicKey, metad
     });
     
     await connection.confirmTransaction(mintSignature, 'confirmed');
-    console.log(`[TOKEN] ✅ Tokens minted: ${mintSignature}`);
+    console.log(`[TOKEN] ✅ Token mintati: ${mintSignature}`);
     
-    // Revoke mint authority if requested
+    // Revoca mint authority se richiesto
     if (config.authorityMode === 'revoke-all') {
         try {
             const revokeTransaction = new Transaction();
@@ -432,13 +386,13 @@ async function createTokenWithFeatures(connection, config, payerPublicKey, metad
             const revokeSignature = await connection.sendRawTransaction(revokeTransaction.serialize());
             await connection.confirmTransaction(revokeSignature, 'confirmed');
             
-            console.log(`[TOKEN] 🔐 Mint authority revoked: ${revokeSignature}`);
+            console.log(`[TOKEN] 🔐 Mint authority revocata: ${revokeSignature}`);
         } catch (error) {
-            console.warn(`[TOKEN] ⚠️ Failed to revoke mint authority: ${error.message}`);
+            console.warn(`[TOKEN] ⚠️ Fallimento revoca mint authority: ${error.message}`);
         }
     }
     
-    console.log(`[TOKEN] 🎉 Token creation completed successfully!`);
+    console.log(`[TOKEN] 🎉 Creazione token completata con successo!`);
     
     return {
         mintAddress: mint.toBase58(),
@@ -469,7 +423,7 @@ module.exports = async (req, res) => {
     if (req.method !== 'POST') {
         return res.status(405).json({ 
             success: false, 
-            error: 'Method not allowed' 
+            error: 'Metodo non consentito' 
         });
     }
     
@@ -478,73 +432,73 @@ module.exports = async (req, res) => {
     if (!checkCreationRateLimit(clientIP)) {
         return res.status(429).json({ 
             success: false, 
-            error: 'Token creation rate limit exceeded. Please wait 5 minutes before creating another token.' 
+            error: 'Limite di creazione token superato. Aspetta 5 minuti prima di creare un altro token.' 
         });
     }
     
     try {
         const { config, payerPublicKey, metadataUrl } = req.body;
         
-        // Validation
+        // Validazione
         if (!config || !payerPublicKey) {
             return res.status(400).json({ 
                 success: false, 
-                error: 'Missing required fields: config and payerPublicKey' 
+                error: 'Campi obbligatori mancanti: config e payerPublicKey' 
             });
         }
         
         if (!metadataUrl) {
             return res.status(400).json({ 
                 success: false, 
-                error: 'Metadata URL is required. Upload metadata first.' 
+                error: 'URL metadata richiesto. Carica prima i metadata.' 
             });
         }
         
-        // Validate payer public key
+        // Valida payer public key
         try {
             new PublicKey(payerPublicKey);
         } catch (error) {
             return res.status(400).json({ 
                 success: false, 
-                error: 'Invalid payer public key format' 
+                error: 'Formato payer public key non valido' 
             });
         }
         
-        // Validate config
+        // Valida config
         if (!config.name || !config.symbol || !config.supply) {
             return res.status(400).json({ 
                 success: false, 
-                error: 'Missing required token config: name, symbol, supply' 
+                error: 'Configurazione token obbligatoria mancante: name, symbol, supply' 
             });
         }
         
         if (config.supply <= 0 || config.supply > 1000000000000) {
             return res.status(400).json({ 
                 success: false, 
-                error: 'Invalid token supply. Must be between 1 and 1 trillion.' 
+                error: 'Supply token non valida. Deve essere tra 1 e 1 trilione.' 
             });
         }
         
         if (config.decimals < 0 || config.decimals > 9) {
             return res.status(400).json({ 
                 success: false, 
-                error: 'Invalid decimals. Must be between 0 and 9.' 
+                error: 'Decimali non validi. Devono essere tra 0 e 9.' 
             });
         }
         
-        // Validate marketing wallet if provided
+        // Valida marketing wallet se fornito
         if (config.marketingWallet) {
             try {
                 new PublicKey(config.marketingWallet);
             } catch (error) {
                 return res.status(400).json({ 
                     success: false, 
-                    error: 'Invalid marketing wallet address' 
+                    error: 'Indirizzo marketing wallet non valido' 
                 });
             }
         }
         
-        console.log(`[TOKEN] 🚀 Starting token creation process`);
+        console.log(`[TOKEN] 🚀 Inizio processo creazione token`);
         console.log(`[TOKEN] 📋 Config:`, {
             name: config.name,
             symbol: config.symbol,
@@ -553,18 +507,18 @@ module.exports = async (req, res) => {
             authorityMode: config.authorityMode
         });
         
-        // Get connection
+        // Ottieni connessione
         const connection = await getWorkingConnection();
         
-        // Create token
+        // Crea token
         const result = await createTokenWithFeatures(connection, config, payerPublicKey, metadataUrl);
         
-        console.log(`[TOKEN] ✅ Token creation successful:`, result.mintAddress);
+        console.log(`[TOKEN] ✅ Creazione token riuscita:`, result.mintAddress);
         
-        // Return success response
+        // Ritorna risposta di successo
         res.status(200).json({
             success: true,
-            message: 'Token created successfully',
+            message: 'Token creato con successo',
             data: {
                 mintAddress: result.mintAddress,
                 signature: result.signature,
@@ -585,25 +539,25 @@ module.exports = async (req, res) => {
         });
         
     } catch (error) {
-        console.error('[TOKEN] ❌ Token creation failed:', error);
+        console.error('[TOKEN] ❌ Creazione token fallita:', error);
         
         let errorMessage = error.message;
         let statusCode = 500;
         
-        // Handle specific error types
-        if (error.message.includes('insufficient funds') || error.message.includes('Insufficient server wallet balance')) {
-            errorMessage = 'Insufficient SOL in server wallet. Please contact administrator.';
+        // Gestisci tipi di errore specifici
+        if (error.message.includes('insufficient funds') || error.message.includes('Saldo server wallet insufficiente')) {
+            errorMessage = 'SOL insufficiente nel server wallet. Contatta l\'amministratore.';
             statusCode = 503;
         } else if (error.message.includes('Invalid public key')) {
-            errorMessage = 'Invalid address format provided.';
+            errorMessage = 'Formato indirizzo fornito non valido.';
             statusCode = 400;
         } else if (error.message.includes('RPC') || error.message.includes('network')) {
-            errorMessage = 'Blockchain network error. Please try again in a few minutes.';
+            errorMessage = 'Errore rete blockchain. Riprova tra qualche minuto.';
             statusCode = 503;
-        } else if (error.message.includes('Server wallet not configured')) {
+        } else if (error.message.includes('Server wallet non configurato')) {
             statusCode = 503;
-        } else if (error.message.includes('METADATA_PROGRAM_ID is undefined')) {
-            errorMessage = 'Metaplex library configuration error. Please check the package version.';
+        } else if (error.message.includes('METADATA_PROGRAM_ID non definito')) {
+            errorMessage = 'Errore configurazione libreria Metaplex. Controlla la versione del pacchetto.';
             statusCode = 500;
         }
         
