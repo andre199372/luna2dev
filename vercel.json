@@ -1,11 +1,12 @@
 {
+  "version": 2,
   "rewrites": [
     {
       "source": "/api/upload-metadata",
       "destination": "/api/upload-metadata.js"
     },
     {
-      "source": "/api/verify-payment",
+      "source": "/api/verify-payment", 
       "destination": "/api/verify-payment.js"
     },
     {
@@ -30,12 +31,27 @@
           "value": "*"
         },
         {
-          "key": "Access-Control-Allow-Methods",
+          "key": "Access-Control-Allow-Methods", 
           "value": "GET, POST, PUT, DELETE, OPTIONS"
         },
         {
           "key": "Access-Control-Allow-Headers",
           "value": "Content-Type, Authorization"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ],
+      "has": [
+        {
+          "type": "host",
+          "value": "galaxy-launch.vercel.app"
         }
       ]
     }
@@ -49,6 +65,12 @@
     },
     "api/create-token.js": {
       "maxDuration": 120
+    },
+    "api/get-balance.js": {
+      "maxDuration": 15
+    },
+    "api/get-blockhash.js": {
+      "maxDuration": 15
     }
   },
   "redirects": [
@@ -60,7 +82,7 @@
           "value": "galaxy-launch.vercel.app"
         }
       ],
-      "destination": "https://galaxylaunch.xyz/:1",
+      "destination": "https://galaxylaunch.xyz/$1",
       "permanent": true
     }
   ]
