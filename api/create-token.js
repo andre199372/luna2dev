@@ -1,4 +1,4 @@
-// api/create-token.js - Complete Production Version
+// api/create-token.js - Fixed Version
 const { 
     Connection, 
     PublicKey, 
@@ -16,15 +16,25 @@ const {
     setAuthority,
     AuthorityType,
     TOKEN_PROGRAM_ID,
-    ASSOCIATED_TOKEN_PROGRAM_ID
+    ASSOCIATED_TOKEN_PROGRAM_ID,
+    createInitializeMintInstruction,
+    createAssociatedTokenAccountInstruction,
+    createMintToInstruction,
+    createSetAuthorityInstruction
 } = require('@solana/spl-token');
 
+// Fixed import for Metaplex
 const {
     createCreateMetadataAccountV3Instruction,
-    PROGRAM_ID: METADATA_PROGRAM_ID
+    PROGRAM_ID as METADATA_PROGRAM_ID
 } = require('@metaplex-foundation/mpl-token-metadata');
 
 const bs58 = require('bs58');
+
+// If the above import doesn't work, try this alternative:
+// const mplTokenMetadata = require('@metaplex-foundation/mpl-token-metadata');
+// const METADATA_PROGRAM_ID = mplTokenMetadata.PROGRAM_ID;
+// const createCreateMetadataAccountV3Instruction = mplTokenMetadata.createCreateMetadataAccountV3Instruction;
 
 // Production RPC endpoints with premium tiers
 const RPC_ENDPOINTS = [
@@ -87,11 +97,21 @@ async function getWorkingConnection() {
 }
 
 function createMetadataInstruction(mint, metadata, updateAuthority, metadataUrl) {
+    // Debug logging
+    console.log('[TOKEN] 🔍 METADATA_PROGRAM_ID:', METADATA_PROGRAM_ID);
+    console.log('[TOKEN] 🔍 mint:', mint);
+    console.log('[TOKEN] 🔍 updateAuthority:', updateAuthority);
+    
+    // Check if METADATA_PROGRAM_ID is defined
+    if (!METADATA_PROGRAM_ID) {
+        throw new Error('METADATA_PROGRAM_ID is undefined. Check @metaplex-foundation/mpl-token-metadata import.');
+    }
+    
     const [metadataPDA] = PublicKey.findProgramAddressSync(
         [
             Buffer.from('metadata'),
-            METADATA_PROGRAM_ID.toBytes(),
-            mint.toBytes(),
+            METADATA_PROGRAM_ID.toBuffer(), // Use toBuffer() instead of toBytes()
+            mint.toBuffer(),
         ],
         METADATA_PROGRAM_ID
     );
@@ -200,10 +220,6 @@ async function createTokenWithFeatures(connection, config, payerPublicKey, metad
     );
     
     // 2. Initialize mint
-    const { 
-        createInitializeMintInstruction 
-    } = require('@solana/spl-token');
-    
     transaction.add(
         createInitializeMintInstruction(
             mint,
@@ -265,10 +281,6 @@ async function createTokenWithFeatures(connection, config, payerPublicKey, metad
     const mintTransaction = new Transaction();
     
     // Create ATA
-    const { 
-        createAssociatedTokenAccountInstruction 
-    } = require('@solana/spl-token');
-    
     mintTransaction.add(
         createAssociatedTokenAccountInstruction(
             serverWallet.publicKey,
@@ -296,8 +308,6 @@ async function createTokenWithFeatures(connection, config, payerPublicKey, metad
     // Mint tokens to payer (includes team tokens for now)
     const totalPayerTokens = payerTokens + teamTokens;
     if (totalPayerTokens > 0) {
-        const { createMintToInstruction } = require('@solana/spl-token');
-        
         mintTransaction.add(
             createMintToInstruction(
                 mint,
@@ -363,7 +373,6 @@ async function createTokenWithFeatures(connection, config, payerPublicKey, metad
     if (config.authorityMode === 'revoke-all') {
         try {
             const revokeTransaction = new Transaction();
-            const { createSetAuthorityInstruction } = require('@solana/spl-token');
             
             revokeTransaction.add(
                 createSetAuthorityInstruction(
@@ -554,6 +563,9 @@ module.exports = async (req, res) => {
             statusCode = 503;
         } else if (error.message.includes('Server wallet not configured')) {
             statusCode = 503;
+        } else if (error.message.includes('METADATA_PROGRAM_ID is undefined')) {
+            errorMessage = 'Metaplex library configuration error. Please check the package version.';
+            statusCode = 500;
         }
         
         res.status(statusCode).json({ 
