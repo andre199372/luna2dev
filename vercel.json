@@ -1,4 +1,11 @@
 {
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "destination": "https://galaxylaunch.xyz/$1",
+      "permanent": true
+    }
+  ]
       "rewrites": [
         {
           "source": "/api/upload-metadata",
