@@ -90,8 +90,8 @@ function createMetadataInstruction(mint, metadata, updateAuthority, metadataUrl)
     const [metadataPDA] = PublicKey.findProgramAddressSync(
         [
             Buffer.from('metadata'),
-            METADATA_PROGRAM_ID.toBuffer(),
-            mint.toBuffer(),
+            METADATA_PROGRAM_ID.toBytes(),
+            mint.toBytes(),
         ],
         METADATA_PROGRAM_ID
     );
