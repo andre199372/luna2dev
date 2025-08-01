@@ -50,7 +50,7 @@
     "api/create-token.js": {
       "maxDuration": 120
     }
-  ],
+  },
   "redirects": [
     {
       "source": "/(.*)",
