@@ -27,10 +27,32 @@
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
     
-    <!-- External Scripts - Versione molto vecchia e stabile -->
+    <!-- External Scripts con Buffer Polyfill -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <!-- Versione 1.63.0 - ultima versione senza problemi Buffer nel browser -->
-    <script src="https://unpkg.com/@solana/web3.js@1.63.0/lib/index.iife.min.js"></script>
+    
+    <!-- Buffer polyfill PRIMA di Solana Web3.js -->
+    <script src="https://unpkg.com/buffer@6.0.3/index.js"></script>
+    <script>
+        // Setup Buffer globale per il browser
+        if (typeof global === 'undefined') {
+            window.global = window;
+        }
+        if (typeof window.Buffer === 'undefined') {
+            window.Buffer = buffer.Buffer;
+        }
+        if (typeof global.Buffer === 'undefined') {
+            global.Buffer = buffer.Buffer;
+        }
+        
+        console.log('Buffer setup:', {
+            windowBuffer: typeof window.Buffer,
+            globalBuffer: typeof global.Buffer,
+            bufferFrom: typeof Buffer !== 'undefined' && typeof Buffer.from === 'function'
+        });
+    </script>
+    
+    <!-- Solana Web3.js DOPO il Buffer polyfill -->
+    <script src="https://unpkg.com/@solana/web3.js@1.78.0/lib/index.iife.min.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
