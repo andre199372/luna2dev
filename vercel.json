@@ -49,7 +49,7 @@
       "headers": [
         {
           "key": "Access-Control-Allow-Origin",
-          "value": "https://galaxy-launch.vercel.app"
+          "value": "https://galaxylaunch.xyz"
         },
         {
           "key": "Access-Control-Allow-Methods",
@@ -77,22 +77,6 @@
     },
     "api/get-blockhash.js": {
       "maxDuration": 15
-    }
-  }
-}Content-Type, Authorization"
-        }
-      ]
-    }
-  ],
-  "functions": {
-    "api/upload-metadata.js": {
-      "maxDuration": 30
-    },
-    "api/verify-payment.js": {
-      "maxDuration": 60
-    },
-    "api/create-token.js": {
-      "maxDuration": 120
     }
   }
 }
