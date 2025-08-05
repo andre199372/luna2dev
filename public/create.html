@@ -45,6 +45,17 @@
     
     <!-- External Scripts - Phantom compliant -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Buffer polyfill per Solana Web3.js -->
+    <script src="https://unpkg.com/buffer@6.0.3/index.js"></script>
+    <script>
+        // Buffer polyfill setup
+        if (typeof global === 'undefined') {
+            var global = globalThis;
+        }
+        if (typeof Buffer === 'undefined') {
+            global.Buffer = buffer.Buffer;
+        }
+    </script>
     <script src="https://unpkg.com/@solana/web3.js@1.87.6/lib/index.iife.min.js"></script>
     <!-- Wallet Standard for Phantom compliance -->
     <script src="https://unpkg.com/@wallet-standard/features@1.0.3/lib/index.iife.js"></script>
