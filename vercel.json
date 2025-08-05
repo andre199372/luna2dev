@@ -1,4 +1,5 @@
 {
+  "version": 2,
   "rewrites": [
     {
       "source": "/api/upload-metadata",
@@ -23,19 +24,62 @@
   ],
   "headers": [
     {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options", 
+          "value": "DENY"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        }
+      ]
+    },
+    {
       "source": "/api/(.*)",
       "headers": [
         {
           "key": "Access-Control-Allow-Origin",
-          "value": "*"
+          "value": "https://galaxy-launch.vercel.app"
         },
         {
           "key": "Access-Control-Allow-Methods",
-          "value": "GET, POST, PUT, DELETE, OPTIONS"
+          "value": "POST, OPTIONS"
         },
         {
           "key": "Access-Control-Allow-Headers",
-          "value": "Content-Type, Authorization"
+          "value": "Content-Type"
+        }
+      ]
+    }
+  ],
+  "functions": {
+    "api/upload-metadata.js": {
+      "maxDuration": 30
+    },
+    "api/verify-payment.js": {
+      "maxDuration": 60
+    },
+    "api/create-token.js": {
+      "maxDuration": 120
+    },
+    "api/get-balance.js": {
+      "maxDuration": 15
+    },
+    "api/get-blockhash.js": {
+      "maxDuration": 15
+    }
+  }
+}Content-Type, Authorization"
         }
       ]
     }
