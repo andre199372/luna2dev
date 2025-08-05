@@ -27,32 +27,56 @@
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
     
-    <!-- External Scripts con Buffer Polyfill -->
+    <!-- External Scripts - Alternativa senza Buffer esterno -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
-    <!-- Buffer polyfill PRIMA di Solana Web3.js -->
-    <script src="https://unpkg.com/buffer@6.0.3/index.js"></script>
+    <!-- Prova con versione bundled di Solana che include Buffer -->
+    <script src="https://unpkg.com/@solana/web3.js@1.78.0/lib/index.iife.min.js"></script>
     <script>
-        // Setup Buffer globale per il browser
-        if (typeof global === 'undefined') {
-            window.global = window;
-        }
-        if (typeof window.Buffer === 'undefined') {
-            window.Buffer = buffer.Buffer;
-        }
-        if (typeof global.Buffer === 'undefined') {
-            global.Buffer = buffer.Buffer;
+        // Setup manuale Buffer se non disponibile
+        if (typeof Buffer === 'undefined' || typeof Buffer.from !== 'function') {
+            // Implementazione Buffer minimale per il caso specifico
+            window.Buffer = {
+                from: function(data, encoding) {
+                    if (Array.isArray(data)) {
+                        return new Uint8Array(data);
+                    }
+                    if (typeof data === 'string') {
+                        if (encoding === 'hex') {
+                            const bytes = [];
+                            for (let i = 0; i < data.length; i += 2) {
+                                bytes.push(parseInt(data.substr(i, 2), 16));
+                            }
+                            return new Uint8Array(bytes);
+                        }
+                        // Default: UTF-8
+                        return new TextEncoder().encode(data);
+                    }
+                    return new Uint8Array(data);
+                },
+                alloc: function(size, fill) {
+                    const arr = new Uint8Array(size);
+                    if (fill !== undefined) {
+                        arr.fill(fill);
+                    }
+                    return arr;
+                },
+                isBuffer: function(obj) {
+                    return obj instanceof Uint8Array;
+                }
+            };
+            
+            // Setup globale
+            global = global || window;
+            global.Buffer = window.Buffer;
         }
         
-        console.log('Buffer setup:', {
-            windowBuffer: typeof window.Buffer,
-            globalBuffer: typeof global.Buffer,
-            bufferFrom: typeof Buffer !== 'undefined' && typeof Buffer.from === 'function'
+        console.log('Buffer final setup:', {
+            bufferExists: typeof Buffer !== 'undefined',
+            bufferFrom: typeof Buffer.from === 'function',
+            bufferAlloc: typeof Buffer.alloc === 'function'
         });
     </script>
-    
-    <!-- Solana Web3.js DOPO il Buffer polyfill -->
-    <script src="https://unpkg.com/@solana/web3.js@1.78.0/lib/index.iife.min.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
