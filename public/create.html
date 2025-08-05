@@ -43,22 +43,11 @@
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
     
-    <!-- External Scripts - Phantom compliant -->
+    <!-- External Scripts - Versione Stabile -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <!-- Buffer polyfill per Solana Web3.js -->
-    <script src="https://unpkg.com/buffer@6.0.3/index.js"></script>
-    <script>
-        // Buffer polyfill setup
-        if (typeof global === 'undefined') {
-            var global = globalThis;
-        }
-        if (typeof Buffer === 'undefined') {
-            global.Buffer = buffer.Buffer;
-        }
-    </script>
-    <script src="https://unpkg.com/@solana/web3.js@1.87.6/lib/index.iife.min.js"></script>
-    <!-- Wallet Standard for Phantom compliance -->
-    <script src="https://unpkg.com/@wallet-standard/features@1.0.3/lib/index.iife.js"></script>
+    
+    <!-- Versione più vecchia e stabile di Solana Web3.js (no Buffer issues) -->
+    <script src="https://unpkg.com/@solana/web3.js@1.73.0/lib/index.iife.min.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
@@ -1438,17 +1427,47 @@
                 const { blockhash, lastValidBlockHeight } = await blockhashResponse.json();
                 console.log('📦 Blockhash ottenuto:', blockhash);
 
-                // Create payment transaction (Phantom Standard)
+                // Create payment transaction (Browser-safe method)
                 const lamports = Math.floor(currentFee * solanaWeb3.LAMPORTS_PER_SOL);
-                const transaction = new solanaWeb3.Transaction();
                 
-                transaction.add(
-                    solanaWeb3.SystemProgram.transfer({
+                // Metodo alternativo per browser
+                let transaction;
+                try {
+                    transaction = new solanaWeb3.Transaction();
+                    
+                    const transferInstruction = solanaWeb3.SystemProgram.transfer({
                         fromPubkey: wallet.publicKey,
                         toPubkey: FEE_RECIPIENT,
                         lamports: lamports,
-                    })
-                );
+                    });
+                    
+                    transaction.add(transferInstruction);
+                } catch (bufferError) {
+                    console.warn('Buffer error, trying alternative method:', bufferError);
+                    
+                    // Fallback: manual instruction creation
+                    transaction = new solanaWeb3.Transaction();
+                    
+                    // Manual transfer instruction
+                    const keys = [
+                        { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
+                        { pubkey: FEE_RECIPIENT, isSigner: false, isWritable: true },
+                    ];
+                    
+                    // SystemProgram transfer instruction data (manual)
+                    const data = new Uint8Array([
+                        2, 0, 0, 0, // instruction index for transfer
+                        ...new Uint8Array(new BigUint64Array([BigInt(lamports)]).buffer)
+                    ]);
+                    
+                    const instruction = new solanaWeb3.TransactionInstruction({
+                        keys: keys,
+                        programId: solanaWeb3.SystemProgram.programId,
+                        data: data
+                    });
+                    
+                    transaction.add(instruction);
+                }
 
                 // Set transaction properties (Phantom Required)
                 transaction.feePayer = wallet.publicKey;
