@@ -10,22 +10,6 @@
     <meta name="application-name" content="Galaxy Launch">
     <meta name="format-detection" content="telephone=no">
     
-    <!-- Security Headers for Phantom Compliance -->
-    <meta http-equiv="Content-Security-Policy" content="
-        default-src 'self' https:;
-        script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com;
-        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-        font-src 'self' https://fonts.gstatic.com;
-        img-src 'self' data: https:;
-        connect-src 'self' https: wss:;
-        frame-ancestors 'none';
-        base-uri 'self';
-        form-action 'self';
-    ">
-    <meta http-equiv="X-Content-Type-Options" content="nosniff">
-    <meta http-equiv="X-Frame-Options" content="DENY">
-    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
-    
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://galaxylaunch.vercel.app/">
@@ -43,11 +27,10 @@
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
     
-    <!-- External Scripts - Versione Stabile -->
+    <!-- External Scripts - Versione Phantom-safe -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    
-    <!-- Versione più vecchia e stabile di Solana Web3.js (no Buffer issues) -->
-    <script src="https://unpkg.com/@solana/web3.js@1.73.0/lib/index.iife.min.js"></script>
+    <!-- Versione più vecchia che funziona sicuramente -->
+    <script src="https://unpkg.com/@solana/web3.js@1.70.0/lib/index.iife.min.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
@@ -1427,47 +1410,29 @@
                 const { blockhash, lastValidBlockHeight } = await blockhashResponse.json();
                 console.log('📦 Blockhash ottenuto:', blockhash);
 
-                // Create payment transaction (Browser-safe method)
+                // Create payment transaction (Metodo semplificato per browser)
                 const lamports = Math.floor(currentFee * solanaWeb3.LAMPORTS_PER_SOL);
                 
-                // Metodo alternativo per browser
-                let transaction;
-                try {
-                    transaction = new solanaWeb3.Transaction();
-                    
-                    const transferInstruction = solanaWeb3.SystemProgram.transfer({
+                console.log('💰 Creating transaction for', lamports, 'lamports');
+                
+                // Usa il metodo più semplice possibile
+                const transaction = new solanaWeb3.Transaction();
+                
+                // Crea l'istruzione di trasferimento manualmente per evitare problemi Buffer
+                const transferInstruction = {
+                    keys: [
+                        { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
+                        { pubkey: FEE_RECIPIENT, isSigner: false, isWritable: true },
+                    ],
+                    programId: solanaWeb3.SystemProgram.programId,
+                    data: solanaWeb3.SystemProgram.transfer({
                         fromPubkey: wallet.publicKey,
                         toPubkey: FEE_RECIPIENT,
                         lamports: lamports,
-                    });
-                    
-                    transaction.add(transferInstruction);
-                } catch (bufferError) {
-                    console.warn('Buffer error, trying alternative method:', bufferError);
-                    
-                    // Fallback: manual instruction creation
-                    transaction = new solanaWeb3.Transaction();
-                    
-                    // Manual transfer instruction
-                    const keys = [
-                        { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
-                        { pubkey: FEE_RECIPIENT, isSigner: false, isWritable: true },
-                    ];
-                    
-                    // SystemProgram transfer instruction data (manual)
-                    const data = new Uint8Array([
-                        2, 0, 0, 0, // instruction index for transfer
-                        ...new Uint8Array(new BigUint64Array([BigInt(lamports)]).buffer)
-                    ]);
-                    
-                    const instruction = new solanaWeb3.TransactionInstruction({
-                        keys: keys,
-                        programId: solanaWeb3.SystemProgram.programId,
-                        data: data
-                    });
-                    
-                    transaction.add(instruction);
-                }
+                    }).data
+                };
+                
+                transaction.add(new solanaWeb3.TransactionInstruction(transferInstruction));
 
                 // Set transaction properties (Phantom Required)
                 transaction.feePayer = wallet.publicKey;
