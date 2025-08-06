@@ -29,6 +29,89 @@
     
     <!-- External Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- Buffer Polyfill per Solana Web3.js -->
+    <script>
+        // Buffer polyfill minimale per browser
+        if (typeof Buffer === 'undefined') {
+            window.Buffer = {
+                from: function(data, encoding) {
+                    if (Array.isArray(data)) {
+                        return new Uint8Array(data);
+                    }
+                    if (typeof data === 'string') {
+                        if (encoding === 'hex') {
+                            const bytes = [];
+                            for (let i = 0; i < data.length; i += 2) {
+                                bytes.push(parseInt(data.substr(i, 2), 16));
+                            }
+                            return new Uint8Array(bytes);
+                        }
+                        if (encoding === 'base64') {
+                            const binaryString = atob(data);
+                            const bytes = new Uint8Array(binaryString.length);
+                            for (let i = 0; i < binaryString.length; i++) {
+                                bytes[i] = binaryString.charCodeAt(i);
+                            }
+                            return bytes;
+                        }
+                        // Default: UTF-8
+                        return new TextEncoder().encode(data);
+                    }
+                    if (data instanceof ArrayBuffer) {
+                        return new Uint8Array(data);
+                    }
+                    return new Uint8Array(data);
+                },
+                alloc: function(size, fill) {
+                    const arr = new Uint8Array(size);
+                    if (fill !== undefined) {
+                        arr.fill(fill);
+                    }
+                    return arr;
+                },
+                allocUnsafe: function(size) {
+                    return new Uint8Array(size);
+                },
+                isBuffer: function(obj) {
+                    return obj instanceof Uint8Array;
+                },
+                concat: function(list, totalLength) {
+                    if (!Array.isArray(list)) {
+                        throw new TypeError('list must be an array');
+                    }
+                    
+                    if (totalLength === undefined) {
+                        totalLength = list.reduce((acc, buf) => acc + buf.length, 0);
+                    }
+                    
+                    const result = new Uint8Array(totalLength);
+                    let offset = 0;
+                    
+                    for (const buf of list) {
+                        result.set(buf, offset);
+                        offset += buf.length;
+                    }
+                    
+                    return result;
+                }
+            };
+            
+            // Setup globalmente per compatibilità
+            if (typeof global === 'undefined') {
+                window.global = window;
+            }
+            global.Buffer = window.Buffer;
+        }
+        
+        console.log('Buffer polyfill loaded:', {
+            bufferExists: typeof Buffer !== 'undefined',
+            bufferFrom: typeof Buffer.from === 'function',
+            bufferAlloc: typeof Buffer.alloc === 'function'
+        });
+    </script>
+    
+    <!-- Solana Web3.js (caricato dopo Buffer polyfill) -->
     <script src="https://unpkg.com/@solana/web3.js@1.95.2/lib/index.iife.min.js"></script>
     
     <style>
