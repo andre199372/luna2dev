@@ -2,6 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!-- Content Security Policy - Phantom Wallet Compatible -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://api.mainnet-beta.solana.com https://solana-mainnet.g.alchemy.com https://solana.public-rpc.com https://mainnet.helius-rpc.com https://rpc.helius.xyz https://api.pinata.cloud https://gateway.pinata.cloud; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self';">
+
+<!-- Security Headers che Phantom si aspetta -->
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta http-equiv="X-Frame-Options" content="DENY">
+<meta http-equiv="X-XSS-Protection" content="1; mode=block">
+<meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+<meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=()">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Galaxy Launch - Professional Solana Token Creator</title>
     <meta name="description" content="Create professional Solana SPL tokens with metadata, liquidity pools, and advanced features. No coding required.">
