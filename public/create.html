@@ -1326,12 +1326,24 @@
                 try {
                     updateStatus('💰 Checking wallet balance...', 'normal');
 
-                    if (!connection || !wallet.publicKey) {
-                        throw new Error('Connection not initialized');
+                    if (!wallet.publicKey) {
+                        throw new Error('Wallet not connected');
                     }
 
-                    const balance = await connection.getBalance(wallet.publicKey);
-                    const balanceSOL = balance / solanaWeb3.LAMPORTS_PER_SOL;
+                    // Use backend API for balance check
+                    const response = await fetch('/api/get-balance', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            publicKey: wallet.publicKey.toBase58() 
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to check wallet balance');
+                    }
+
+                    const { balanceSOL } = await response.json();
                     const requiredSOL = currentFee + 0.01; // Extra for transaction fees
 
                     console.log(`💰 Wallet balance: ${balanceSOL.toFixed(4)} SOL`);
@@ -1353,13 +1365,18 @@
                 try {
                     updateStatus('⏳ Preparing payment transaction...', 'normal');
 
-                    if (!connection || !FEE_RECIPIENT || !wallet.publicKey) {
+                    if (!FEE_RECIPIENT || !wallet.publicKey) {
                         throw new Error('Payment system not properly initialized');
                     }
 
-                    // Get recent blockhash
-                    const { blockhash } = await connection.getLatestBlockhash();
-                    console.log('📦 Got blockhash:', blockhash);
+                    // Get recent blockhash from backend
+                    const blockhashResponse = await fetch('/api/get-blockhash');
+                    if (!blockhashResponse.ok) {
+                        throw new Error('Failed to get blockhash from server');
+                    }
+
+                    const { blockhash, lastValidBlockHeight } = await blockhashResponse.json();
+                    console.log('📦 Got blockhash from server:', blockhash);
 
                     // Create payment transaction
                     const lamports = Math.floor(currentFee * solanaWeb3.LAMPORTS_PER_SOL);
@@ -1387,19 +1404,45 @@
                         console.warn('Fallback to sign + send:', signError);
                         // Fallback to separate sign and send
                         const signedTransaction = await wallet.provider.signTransaction(transaction);
-                        signature = await connection.sendRawTransaction(signedTransaction.serialize());
+                        
+                        // Send via backend connection
+                        const sendResponse = await fetch('/api/send-transaction', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                serializedTransaction: Array.from(signedTransaction.serialize())
+                            })
+                        });
+                        
+                        if (!sendResponse.ok) {
+                            throw new Error('Failed to send transaction via backend');
+                        }
+                        
+                        const { signature: backendSignature } = await sendResponse.json();
+                        signature = backendSignature;
                     }
 
                     console.log('📝 Payment signature:', signature);
 
                     updateStatus('🔍 Verifying payment...', 'normal');
 
-                    // Wait for confirmation
-                    await connection.confirmTransaction({
-                        signature: signature,
-                        blockhash: blockhash,
-                        lastValidBlockHeight: (await connection.getLatestBlockhash()).lastValidBlockHeight
+                    // Verify payment through backend
+                    const verificationResponse = await fetch('/api/verify-payment', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            signature,
+                            payer: wallet.publicKey.toBase58()
+                        })
                     });
+
+                    if (!verificationResponse.ok) {
+                        const errorData = await verificationResponse.json();
+                        throw new Error(errorData.error || 'Payment verification failed');
+                    }
+
+                    const verificationResult = await verificationResponse.json();
+                    console.log('✅ Payment verification result:', verificationResult);
 
                     await Swal.fire({
                         title: 'Payment Confirmed!',
@@ -1408,11 +1451,13 @@
                             <p><strong>Amount:</strong> ${currentFee} SOL</p>
                             <p><strong>Signature:</strong></p>
                             <code style="word-break: break-all; font-size: 0.75em; background: #f1f1f1; padding: 8px; border-radius: 4px; display: block; margin: 8px 0; color: #333;">${signature}</code>
-                            <p>Token creation will start automatically...</p>
+                            <p><strong>View on Solscan:</strong></p>
+                            <a href="https://solscan.io/tx/${signature}" target="_blank" style="color: #3b82f6;">View Transaction</a>
+                            <p style="margin-top: 1rem;">Token creation will start automatically...</p>
                         `,
                         icon: 'success',
                         confirmButtonText: 'Continue',
-                        timer: 3000,
+                        timer: 5000,
                         timerProgressBar: true
                     });
 
@@ -1443,6 +1488,8 @@
                     if (error.message.includes('User rejected') || error.code === 4001) {
                         errorTitle = 'Transaction Cancelled';
                         errorMessage = 'You cancelled the transaction. Click again to retry.';
+                    } else if (error.message.includes('insufficient funds')) {
+                        errorMessage = 'Insufficient SOL balance. Please add SOL to your wallet and try again.';
                     }
 
                     await Swal.fire({
@@ -1464,64 +1511,149 @@
                     const config = collectTokenConfig();
                     console.log('🔧 Token config:', config);
 
-                    // Simulate token creation process (replace with actual API calls)
                     updateStatus('☁️ Uploading metadata to IPFS...', 'normal');
-                    await simulateDelay(2000);
 
-                    updateStatus('🔨 Creating token on Solana...', 'normal');
-                    await simulateDelay(3000);
+                    // Upload metadata to IPFS via backend
+                    const metadataPayload = {
+                        name: config.name,
+                        symbol: config.symbol,
+                        description: config.description,
+                        imageBase64: config.imageBase64
+                    };
 
-                    updateStatus('🎯 Setting up authorities...', 'normal');
-                    await simulateDelay(1500);
+                    // Add social links if provided
+                    if (config.website) metadataPayload.website = config.website;
+                    if (config.twitter) metadataPayload.twitter = config.twitter;
+                    if (config.telegram) metadataPayload.telegram = config.telegram;
+                    if (config.discord) metadataPayload.discord = config.discord;
+                    if (config.github) metadataPayload.github = config.github;
 
-                    updateStatus('📊 Finalizing token setup...', 'normal');
-                    await simulateDelay(1000);
+                    const metadataResponse = await fetch('/api/upload-metadata', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(metadataPayload)
+                    });
 
-                    // Simulate successful creation
-                    const mockMintAddress = generateMockAddress();
-                    const mockSignature = generateMockSignature();
+                    if (!metadataResponse.ok) {
+                        const errorData = await metadataResponse.json();
+                        throw new Error(errorData.error || 'Failed to upload metadata to IPFS');
+                    }
 
-                    console.log('🎉 Token created successfully');
+                    const { metadataUrl, imageUrl } = await metadataResponse.json();
+                    console.log('📄 Metadata uploaded to IPFS:', metadataUrl);
+                    if (imageUrl) console.log('🖼️ Image uploaded to IPFS:', imageUrl);
+
+                    updateStatus('🔨 Creating token on Solana blockchain...', 'normal');
+
+                    // Create token via backend
+                    const tokenCreationPayload = {
+                        config: {
+                            ...config,
+                            paymentSignature // Include payment signature for verification
+                        },
+                        payerPublicKey: wallet.publicKey.toBase58(),
+                        metadataUrl: metadataUrl
+                    };
+
+                    const creationResponse = await fetch('/api/create-token', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(tokenCreationPayload)
+                    });
+
+                    if (!creationResponse.ok) {
+                        const errorData = await creationResponse.json();
+                        console.error('❌ Token creation API error:', errorData);
+                        throw new Error(errorData.error || 'Token creation failed on server');
+                    }
+
+                    const responseData = await creationResponse.json();
+                    console.log('🎉 Token creation response:', responseData);
+
+                    // Extract token data
+                    const tokenData = responseData.data || responseData;
+                    const mintAddress = tokenData.mintAddress;
+                    const signature = tokenData.signature;
+                    const mintSignature = tokenData.mintSignature;
+                    const explorerUrl = tokenData.explorerUrl || `https://solscan.io/token/${mintAddress}`;
+                    const solscanUrl = tokenData.solscanUrl || `https://solscan.io/tx/${signature}`;
+
+                    if (!mintAddress || !signature) {
+                        console.error('❌ Missing required data:', { mintAddress, signature, responseData });
+                        throw new Error('Incomplete token creation response from server');
+                    }
+
+                    console.log('🎉 Token created successfully:', { mintAddress, signature });
 
                     // Update counter
                     animateCounter();
 
                     await Swal.fire({
-                        title: 'Token Created Successfully!',
+                        title: 'Token Created Successfully! 🎉',
                         html: `
-                            <div style="text-align: left; max-width: 400px;">
-                                <p><strong>Name:</strong> ${config.name}</p>
-                                <p><strong>Symbol:</strong> ${config.symbol}</p>
-                                <p><strong>Supply:</strong> ${config.supply.toLocaleString()}</p>
-                                <p><strong>Decimals:</strong> ${config.decimals}</p>
-                                <p><strong>Mint Address:</strong></p>
-                                <code style="word-break: break-all; font-size: 0.8em; background: #f1f1f1; padding: 8px; border-radius: 4px; display: block; margin: 8px 0; color: #333;">${mockMintAddress}</code>
-                                <p><strong>Transaction:</strong></p>
-                                <code style="word-break: break-all; font-size: 0.8em; background: #f1f1f1; padding: 8px; border-radius: 4px; display: block; margin: 8px 0; color: #333;">${mockSignature}</code>
-                                <div style="margin-top: 1rem; padding: 1rem; background: rgba(16, 185, 129, 0.1); border-radius: 8px;">
-                                    <p style="margin: 0; font-size: 0.9em; color: #10b981;">
-                                        ✅ Your token is now available for trading on Jupiter and other DEX!<br>
-                                        🚀 Ready for liquidity pool creation<br>
-                                        📊 Visible on all Solana explorers
+                            <div style="text-align: left; max-width: 500px; margin: 0 auto;">
+                                <div style="background: rgba(16, 185, 129, 0.1); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                                    <h4 style="margin: 0 0 0.5rem 0; color: #10b981;">✅ Token Details</h4>
+                                    <p style="margin: 0.25rem 0;"><strong>Name:</strong> ${config.name}</p>
+                                    <p style="margin: 0.25rem 0;"><strong>Symbol:</strong> ${config.symbol}</p>
+                                    <p style="margin: 0.25rem 0;"><strong>Supply:</strong> ${config.supply.toLocaleString()}</p>
+                                    <p style="margin: 0.25rem 0;"><strong>Decimals:</strong> ${config.decimals}</p>
+                                </div>
+                                
+                                <div style="margin-bottom: 1rem;">
+                                    <p style="margin: 0.5rem 0;"><strong>📍 Mint Address:</strong></p>
+                                    <code style="word-break: break-all; font-size: 0.8em; background: #f1f1f1; padding: 8px; border-radius: 4px; display: block; margin: 4px 0; color: #333;">${mintAddress}</code>
+                                </div>
+                                
+                                <div style="margin-bottom: 1rem;">
+                                    <p style="margin: 0.5rem 0;"><strong>📝 Creation Transaction:</strong></p>
+                                    <code style="word-break: break-all; font-size: 0.8em; background: #f1f1f1; padding: 8px; border-radius: 4px; display: block; margin: 4px 0; color: #333;">${signature}</code>
+                                </div>
+                                
+                                ${mintSignature ? `
+                                <div style="margin-bottom: 1rem;">
+                                    <p style="margin: 0.5rem 0;"><strong>🪙 Minting Transaction:</strong></p>
+                                    <code style="word-break: break-all; font-size: 0.8em; background: #f1f1f1; padding: 8px; border-radius: 4px; display: block; margin: 4px 0; color: #333;">${mintSignature}</code>
+                                </div>
+                                ` : ''}
+                                
+                                <div style="margin: 1rem 0; padding: 1rem; background: rgba(59, 130, 246, 0.1); border-radius: 8px;">
+                                    <p style="margin: 0; font-size: 0.9em; color: #3b82f6;">
+                                        🚀 <strong>Your token is now live!</strong><br>
+                                        • Available for trading on Jupiter DEX<br>
+                                        • Visible on all Solana explorers<br>
+                                        • Ready for liquidity pool creation<br>
+                                        ${config.authorityMode === 'revoke-all' ? '• Fully decentralized (authorities revoked)' : '• Authorities configured as requested'}
                                     </p>
                                 </div>
-                                <div style="margin-top: 1rem; text-align: center;">
-                                    <a href="https://solscan.io/token/${mockMintAddress}" target="_blank" 
-                                       style="display: inline-block; background: #3b82f6; color: white; padding: 8px 16px; 
-                                              border-radius: 6px; text-decoration: none; margin: 4px;">
-                                        View on Solscan
+                                
+                                <div style="margin-top: 1.5rem; text-align: center; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;">
+                                    <a href="${explorerUrl}" target="_blank" 
+                                       style="display: inline-block; background: #3b82f6; color: white; padding: 10px 16px; 
+                                              border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.9em;">
+                                        📊 View on Solscan
                                     </a>
-                                    <a href="https://jup.ag/swap/SOL-${mockMintAddress}" target="_blank" 
-                                       style="display: inline-block; background: #10b981; color: white; padding: 8px 16px; 
-                                              border-radius: 6px; text-decoration: none; margin: 4px;">
-                                        Trade on Jupiter
+                                    <a href="https://jup.ag/swap/SOL-${mintAddress}" target="_blank" 
+                                       style="display: inline-block; background: #10b981; color: white; padding: 10px 16px; 
+                                              border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.9em;">
+                                        💱 Trade on Jupiter
                                     </a>
+                                    ${metadataUrl ? `
+                                    <a href="${metadataUrl}" target="_blank" 
+                                       style="display: inline-block; background: #8b5cf6; color: white; padding: 10px 16px; 
+                                              border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.9em;">
+                                        📄 View Metadata
+                                    </a>
+                                    ` : ''}
                                 </div>
                             </div>
                         `,
                         icon: 'success',
-                        confirmButtonText: 'Perfect!',
-                        width: 600
+                        confirmButtonText: 'Perfect! 🎉',
+                        width: 700,
+                        showClass: {
+                            popup: 'animate__animated animate__fadeInUp'
+                        }
                     });
 
                     // Reset for next token
@@ -1530,18 +1662,45 @@
                 } catch (error) {
                     console.error('❌ Token creation error:', error);
                     
+                    let errorMessage = error.message;
+                    let helpText = 'If the problem persists, please contact support.';
+                    
+                    // Provide more specific help based on error type
+                    if (error.message.includes('IPFS') || error.message.includes('metadata')) {
+                        helpText = 'There was an issue uploading your token metadata. Please check your internet connection and try again.';
+                    } else if (error.message.includes('insufficient funds') || error.message.includes('SOL')) {
+                        helpText = 'The server wallet needs more SOL to complete token creation. Please contact support.';
+                        errorMessage = 'Server wallet insufficient funds. Our team has been notified.';
+                    } else if (error.message.includes('RPC') || error.message.includes('network')) {
+                        helpText = 'There was a temporary network issue. Please wait a moment and try again.';
+                    }
+                    
                     await Swal.fire({
-                        title: 'Creation Error',
+                        title: 'Token Creation Error',
                         html: `
-                            <p><strong>Error:</strong> ${error.message}</p>
-                            <p style="margin-top: 1rem; font-size: 0.9em; color: #666;">
-                                If the problem persists, contact support or try again.
-                            </p>
+                            <div style="text-align: left;">
+                                <p style="margin-bottom: 1rem;"><strong>Error:</strong> ${errorMessage}</p>
+                                <div style="background: rgba(239, 68, 68, 0.1); border-radius: 8px; padding: 1rem; margin: 1rem 0;">
+                                    <p style="margin: 0; font-size: 0.9em; color: #dc2626;">
+                                        ${helpText}
+                                    </p>
+                                </div>
+                                ${paymentSignature ? `
+                                <div style="background: rgba(245, 158, 11, 0.1); border-radius: 8px; padding: 1rem; margin: 1rem 0;">
+                                    <p style="margin: 0; font-size: 0.85em; color: #d97706;">
+                                        <strong>Note:</strong> Your payment was successful. You can retry token creation without paying again, or contact support with this payment signature: 
+                                        <code style="font-size: 0.8em;">${paymentSignature.substring(0, 20)}...</code>
+                                    </p>
+                                </div>
+                                ` : ''}
+                            </div>
                         `,
                         icon: 'error',
-                        confirmButtonText: 'Try Again'
+                        confirmButtonText: 'Try Again',
+                        width: 600
                     });
 
+                    // Reset button to allow retry
                     mainBtn.innerHTML = 'Retry Token Creation';
                     mainBtn.disabled = false;
                     updateStatus('❌ Creation failed. You can retry.', 'error');
