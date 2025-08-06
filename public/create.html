@@ -2,158 +2,145 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- Updated Content Security Policy - More permissive for crypto libraries -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com https://cdn.skypack.dev; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; connect-src 'self' https://api.mainnet-beta.solana.com https://solana-mainnet.g.alchemy.com https://solana.public-rpc.com https://mainnet.helius-rpc.com https://rpc.helius.xyz https://api.pinata.cloud https://gateway.pinata.cloud https://api.devnet.solana.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self';">
+    <!-- Content Security Policy - Phantom Wallet Compatible -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://api.mainnet-beta.solana.com https://solana-mainnet.g.alchemy.com https://solana.public-rpc.com https://mainnet.helius-rpc.com https://rpc.helius.xyz https://api.pinata.cloud https://gateway.pinata.cloud; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self';">
 
-    <!-- Security Headers -->
-    <meta http-equiv="X-Content-Type-Options" content="nosniff">
-    <meta http-equiv="X-Frame-Options" content="DENY">
-    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
-    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
-    <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=()">
-    
+<!-- Security Headers che Phantom si aspetta -->
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta http-equiv="X-Frame-Options" content="DENY">
+<meta http-equiv="X-XSS-Protection" content="1; mode=block">
+<meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+<meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=()">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Galaxy Launch - Professional Solana Token Creator</title>
     <meta name="description" content="Create professional Solana SPL tokens with metadata, liquidity pools, and advanced features. No coding required.">
     <meta name="keywords" content="solana, token, creator, spl, blockchain, crypto, defi">
     <meta name="author" content="Galaxy Launch Team">
+    <meta name="application-name" content="Galaxy Launch">
+    <meta name="format-detection" content="telephone=no">
     
-    <!-- Open Graph / Social -->
+    <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
+    <meta property="og:url" content="https://galaxylaunch.vercel.app/">
     <meta property="og:title" content="Galaxy Launch - Solana Token Creator">
     <meta property="og:description" content="Create professional Solana SPL tokens with advanced features">
     <meta property="og:image" content="/og-image.png">
 
-    <!-- External Dependencies -->
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://galaxylaunch.vercel.app/">
+    <meta property="twitter:title" content="Galaxy Launch - Solana Token Creator">
+    <meta property="twitter:description" content="Create professional Solana SPL tokens with advanced features">
+    <meta property="twitter:image" content="/og-image.png">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png">
+    <link rel="manifest" href="/site.webmanifest">
+    
+    <!-- External Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
-    <!-- Enhanced Buffer Polyfill for better browser compatibility -->
+    <!-- Buffer Polyfill per Solana Web3.js -->
     <script>
-        (function() {
-            'use strict';
-            
-            if (typeof Buffer === 'undefined') {
-                const BufferPolyfill = {
-                    from: function(data, encoding) {
-                        if (Array.isArray(data)) {
-                            return new Uint8Array(data);
-                        }
-                        if (typeof data === 'string') {
-                            if (encoding === 'hex') {
-                                const bytes = [];
-                                for (let i = 0; i < data.length; i += 2) {
-                                    bytes.push(parseInt(data.substr(i, 2), 16));
-                                }
-                                return new Uint8Array(bytes);
-                            }
-                            if (encoding === 'base64') {
-                                try {
-                                    const binaryString = atob(data);
-                                    const bytes = new Uint8Array(binaryString.length);
-                                    for (let i = 0; i < binaryString.length; i++) {
-                                        bytes[i] = binaryString.charCodeAt(i);
-                                    }
-                                    return bytes;
-                                } catch (e) {
-                                    console.warn('Base64 decode error:', e);
-                                    return new Uint8Array(0);
-                                }
-                            }
-                            return new TextEncoder().encode(data);
-                        }
-                        if (data instanceof ArrayBuffer) {
-                            return new Uint8Array(data);
-                        }
-                        if (data && typeof data.length === 'number') {
-                            return new Uint8Array(data);
-                        }
-                        return new Uint8Array(0);
-                    },
-                    
-                    alloc: function(size, fill) {
-                        const arr = new Uint8Array(size);
-                        if (fill !== undefined) {
-                            arr.fill(fill);
-                        }
-                        return arr;
-                    },
-                    
-                    allocUnsafe: function(size) {
-                        return new Uint8Array(size);
-                    },
-                    
-                    isBuffer: function(obj) {
-                        return obj instanceof Uint8Array || 
-                               (obj && typeof obj.constructor === 'function' && 
-                                obj.constructor.name === 'Uint8Array');
-                    },
-                    
-                    concat: function(list, totalLength) {
-                        if (!Array.isArray(list)) {
-                            throw new TypeError('list must be an array');
-                        }
-                        
-                        if (totalLength === undefined) {
-                            totalLength = list.reduce((acc, buf) => acc + (buf ? buf.length : 0), 0);
-                        }
-                        
-                        const result = new Uint8Array(totalLength);
-                        let offset = 0;
-                        
-                        for (const buf of list) {
-                            if (buf && buf.length > 0) {
-                                result.set(buf, offset);
-                                offset += buf.length;
-                            }
-                        }
-                        
-                        return result;
+        // Buffer polyfill minimale per browser
+        if (typeof Buffer === 'undefined') {
+            window.Buffer = {
+                from: function(data, encoding) {
+                    if (Array.isArray(data)) {
+                        return new Uint8Array(data);
                     }
-                };
-                
-                // Make it globally available
-                window.Buffer = BufferPolyfill;
-                if (typeof global === 'undefined') {
-                    window.global = window;
+                    if (typeof data === 'string') {
+                        if (encoding === 'hex') {
+                            const bytes = [];
+                            for (let i = 0; i < data.length; i += 2) {
+                                bytes.push(parseInt(data.substr(i, 2), 16));
+                            }
+                            return new Uint8Array(bytes);
+                        }
+                        if (encoding === 'base64') {
+                            const binaryString = atob(data);
+                            const bytes = new Uint8Array(binaryString.length);
+                            for (let i = 0; i < binaryString.length; i++) {
+                                bytes[i] = binaryString.charCodeAt(i);
+                            }
+                            return bytes;
+                        }
+                        // Default: UTF-8
+                        return new TextEncoder().encode(data);
+                    }
+                    if (data instanceof ArrayBuffer) {
+                        return new Uint8Array(data);
+                    }
+                    return new Uint8Array(data);
+                },
+                alloc: function(size, fill) {
+                    const arr = new Uint8Array(size);
+                    if (fill !== undefined) {
+                        arr.fill(fill);
+                    }
+                    return arr;
+                },
+                allocUnsafe: function(size) {
+                    return new Uint8Array(size);
+                },
+                isBuffer: function(obj) {
+                    return obj instanceof Uint8Array;
+                },
+                concat: function(list, totalLength) {
+                    if (!Array.isArray(list)) {
+                        throw new TypeError('list must be an array');
+                    }
+                    
+                    if (totalLength === undefined) {
+                        totalLength = list.reduce((acc, buf) => acc + buf.length, 0);
+                    }
+                    
+                    const result = new Uint8Array(totalLength);
+                    let offset = 0;
+                    
+                    for (const buf of list) {
+                        result.set(buf, offset);
+                        offset += buf.length;
+                    }
+                    
+                    return result;
                 }
-                global.Buffer = BufferPolyfill;
-                
-                console.log('✅ Enhanced Buffer polyfill loaded');
+            };
+            
+            // Setup globalmente per compatibilità
+            if (typeof global === 'undefined') {
+                window.global = window;
             }
-        })();
+            global.Buffer = window.Buffer;
+        }
+        
+        console.log('Buffer polyfill loaded:', {
+            bufferExists: typeof Buffer !== 'undefined',
+            bufferFrom: typeof Buffer.from === 'function',
+            bufferAlloc: typeof Buffer.alloc === 'function'
+        });
     </script>
     
-    <!-- Solana Web3.js with error handling -->
-    <script>
-        (function() {
-            const script = document.createElement('script');
-            script.src = 'https://unpkg.com/@solana/web3.js@1.95.2/lib/index.iife.min.js';
-            script.onload = function() {
-                console.log('✅ Solana Web3.js loaded successfully');
-                window.solanaLoaded = true;
-                window.dispatchEvent(new CustomEvent('solana-loaded'));
-            };
-            script.onerror = function() {
-                console.error('❌ Failed to load Solana Web3.js');
-                window.solanaLoaded = false;
-                window.dispatchEvent(new CustomEvent('solana-error'));
-            };
-            document.head.appendChild(script);
-        })();
-    </script>
+    <!-- Solana Web3.js (caricato dopo Buffer polyfill) -->
+    <script src="https://unpkg.com/@solana/web3.js@1.95.2/lib/index.iife.min.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
         :root {
-            /* Enhanced Color Palette */
+            /* Color Palette */
             --primary-purple: #8b5cf6;
             --primary-blue: #3b82f6;
             --accent-green: #10b981;
             --accent-orange: #f59e0b;
             --accent-red: #ef4444;
             
-            /* Dark Theme Backgrounds */
+            /* Backgrounds */
             --bg-primary: #0f0f23;
             --bg-secondary: #1a1a2e;
             --bg-tertiary: #16213e;
@@ -173,13 +160,13 @@
             --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.25);
             --shadow-button: 0 8px 25px rgba(139, 92, 246, 0.4);
             
-            /* Animations */
+            /* Transitions */
             --transition-fast: 0.15s ease-out;
             --transition-medium: 0.3s ease-out;
             --transition-slow: 0.5s ease-out;
             --transition-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
             
-            /* Spacing System */
+            /* Spacing */
             --space-xs: 0.5rem;
             --space-sm: 1rem;
             --space-md: 1.5rem;
@@ -215,7 +202,6 @@
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             
-            /* Dynamic background with animated gradients */
             background-image: 
                 radial-gradient(circle at 20% 20%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
                 radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
@@ -223,40 +209,22 @@
             background-attachment: fixed;
         }
 
-        /* Enhanced Selection Styling */
         ::selection {
             background: var(--primary-purple);
             color: white;
         }
 
-        /* Header with improved animations */
+        /* Header */
         header {
             text-align: center;
             padding: var(--space-2xl) var(--space-lg);
             border-bottom: 1px solid var(--border-secondary);
             background: var(--bg-secondary);
             position: relative;
-            overflow: hidden;
-        }
-
-        header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -50%;
-            width: 200%;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, var(--primary-purple), var(--primary-blue), var(--accent-green), transparent);
-            animation: shimmer 3s ease-in-out infinite;
-        }
-
-        @keyframes shimmer {
-            0%, 100% { transform: translateX(-100%); }
-            50% { transform: translateX(0%); }
         }
 
         .logo {
-            font-size: clamp(2rem, 5vw, 3.5rem);
+            font-size: clamp(2rem, 5vw, 3rem);
             font-weight: 800;
             background: linear-gradient(135deg, var(--primary-purple), var(--primary-blue), var(--accent-green));
             background-size: 200% 200%;
@@ -266,8 +234,6 @@
             margin-bottom: var(--space-xs);
             animation: gradientShift 4s ease-in-out infinite;
             letter-spacing: -0.02em;
-            position: relative;
-            z-index: 1;
         }
 
         @keyframes gradientShift {
@@ -281,35 +247,18 @@
             font-weight: 400;
             opacity: 0.9;
             margin-bottom: var(--space-sm);
-            position: relative;
-            z-index: 1;
         }
 
-        /* Enhanced Stats Section */
         .stats {
             display: flex;
             justify-content: center;
             gap: var(--space-xl);
             margin-top: var(--space-lg);
             flex-wrap: wrap;
-            position: relative;
-            z-index: 1;
         }
 
         .stat-item {
             text-align: center;
-            padding: var(--space-sm);
-            border-radius: var(--radius-md);
-            background: rgba(255, 255, 255, 0.02);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            transition: all var(--transition-medium);
-        }
-
-        .stat-item:hover {
-            transform: translateY(-2px);
-            background: rgba(255, 255, 255, 0.05);
-            border-color: var(--primary-purple);
         }
 
         .stat-number {
@@ -317,7 +266,6 @@
             font-weight: 700;
             color: var(--accent-green);
             display: block;
-            transition: all var(--transition-medium);
         }
 
         .stat-label {
@@ -341,7 +289,7 @@
             position: relative;
         }
 
-        /* Enhanced Form Components */
+        /* Form Components */
         .form {
             background: var(--bg-card);
             border: 1px solid var(--border-primary);
@@ -350,7 +298,6 @@
             box-shadow: var(--shadow-card), var(--shadow-glow);
             position: relative;
             overflow: hidden;
-            backdrop-filter: blur(10px);
         }
 
         .form::before {
@@ -373,6 +320,10 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: var(--space-md);
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
         }
 
         label {
@@ -418,7 +369,7 @@
             line-height: 1.5;
         }
 
-        /* Enhanced Upload Component */
+        /* Upload Component */
         .upload-area {
             border: 2px dashed var(--border-secondary);
             border-radius: var(--radius-md);
@@ -435,7 +386,6 @@
             border-color: var(--primary-purple);
             background: var(--bg-tertiary);
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(139, 92, 246, 0.15);
         }
 
         .upload-area span {
@@ -456,14 +406,13 @@
             transition: all var(--transition-medium);
         }
 
-        /* Enhanced Toggle Components */
+        /* Toggle Components */
         .toggle-group {
             margin: var(--space-xl) 0;
             border: 1px solid var(--border-secondary);
             border-radius: var(--radius-md);
             background: var(--bg-secondary);
             overflow: hidden;
-            backdrop-filter: blur(10px);
         }
 
         .toggle-item {
@@ -514,7 +463,6 @@
             line-height: 1.5;
         }
 
-        /* Enhanced Toggle Switch */
         .toggle-switch {
             position: relative;
             width: 52px;
@@ -553,7 +501,6 @@
             transform: translateX(24px);
         }
 
-        /* Enhanced Expandable Sections */
         .expandable-section {
             overflow: hidden;
             transition: all var(--transition-slow);
@@ -570,7 +517,7 @@
             margin-top: var(--space-md);
         }
 
-        /* Enhanced Authority Cards */
+        /* Authority Cards */
         .authority-section {
             margin: var(--space-2xl) 0;
         }
@@ -609,7 +556,6 @@
             transition: all var(--transition-medium);
             position: relative;
             overflow: hidden;
-            backdrop-filter: blur(10px);
         }
 
         .authority-card:hover {
@@ -689,7 +635,7 @@
             display: inline-block;
         }
 
-        /* Enhanced Button Components */
+        /* Button Components */
         .btn {
             display: flex;
             width: 100%;
@@ -797,7 +743,20 @@
             display: none;
         }
 
-        /* Enhanced Status Display */
+        .legitimacy-indicators {
+            margin-top: var(--space-lg);
+            padding: var(--space-md);
+            background: rgba(16, 185, 129, 0.05);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: var(--radius-md);
+            text-align: center;
+        }
+
+        .legitimacy-indicators p {
+            margin: 0.25rem 0;
+            font-size: 0.875rem;
+        }
+
         #status-display {
             text-align: center;
             margin-bottom: var(--space-md);
@@ -808,7 +767,6 @@
             border-radius: var(--radius-md);
             border: 1px solid var(--border-secondary);
             transition: all var(--transition-medium);
-            backdrop-filter: blur(10px);
         }
 
         .error-status {
@@ -829,7 +787,7 @@
             border-color: rgba(245, 158, 11, 0.3) !important;
         }
 
-        /* Enhanced Network Status */
+        /* Network Status */
         .network-status {
             position: fixed;
             top: 20px;
@@ -844,7 +802,6 @@
             display: flex;
             align-items: center;
             gap: var(--space-xs);
-            backdrop-filter: blur(10px);
         }
 
         .network-status.online {
@@ -857,14 +814,13 @@
             color: var(--accent-red);
         }
 
-        /* Enhanced Footer */
+        /* Footer */
         footer {
             text-align: center;
             padding: var(--space-2xl);
             border-top: 1px solid var(--border-secondary);
             margin-top: var(--space-2xl);
             background: var(--bg-secondary);
-            backdrop-filter: blur(10px);
         }
 
         footer p {
@@ -882,17 +838,7 @@
             color: var(--primary-purple);
         }
 
-        /* Enhanced Loading States */
-        .pulse {
-            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        /* Enhanced Responsive Design */
+        /* Responsive Design */
         @media (max-width: 768px) {
             .form {
                 padding: var(--space-lg);
@@ -924,14 +870,6 @@
             .stats {
                 gap: var(--space-lg);
             }
-
-            .network-status {
-                position: relative;
-                top: auto;
-                left: auto;
-                margin: var(--space-sm);
-                align-self: flex-start;
-            }
         }
 
         @media (max-width: 480px) {
@@ -948,7 +886,7 @@
             }
         }
 
-        /* Enhanced Scrollbar */
+        /* Custom Scrollbar */
         ::-webkit-scrollbar {
             width: 8px;
         }
@@ -966,14 +904,13 @@
             background: var(--primary-blue);
         }
 
-        /* Enhanced SweetAlert2 Overrides */
+        /* SweetAlert2 Overrides */
         .swal2-popup {
             background: var(--bg-card) !important;
             color: var(--text-primary) !important;
             border-radius: var(--radius-lg) !important;
             border: 1px solid var(--border-primary) !important;
             box-shadow: var(--shadow-card) !important;
-            backdrop-filter: blur(20px) !important;
         }
 
         .swal2-title {
@@ -996,32 +933,10 @@
             color: var(--text-secondary) !important;
             border: 1px solid var(--border-secondary) !important;
         }
-
-        /* Error States */
-        .error-message {
-            color: var(--accent-red);
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            border-radius: var(--radius-sm);
-            padding: var(--space-sm);
-            margin-top: var(--space-xs);
-            font-size: 0.875rem;
-        }
-
-        /* Success States */
-        .success-message {
-            color: var(--accent-green);
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid rgba(16, 185, 129, 0.3);
-            border-radius: var(--radius-sm);
-            padding: var(--space-sm);
-            margin-top: var(--space-xs);
-            font-size: 0.875rem;
-        }
     </style>
 </head>
 <body>
-    <!-- Enhanced Network Status Indicator -->
+    <!-- Network Status Indicator -->
     <div class="network-status online" id="network-status">
         <span id="network-indicator">🟢</span>
         <span id="network-text">Mainnet</span>
@@ -1050,9 +965,9 @@
     <main>
         <div class="container">
             <form class="form" id="token-form">
-                <!-- Enhanced Wallet Connection -->
+                <!-- Wallet Connection -->
                 <button type="button" class="btn btn-connect" id="connect-wallet-btn">
-                    <span class="pulse">🔗</span> Connect Solana Wallet
+                    🔗 Connect Solana Wallet
                 </button>
 
                 <!-- Basic Token Information -->
@@ -1072,11 +987,11 @@
                     <textarea id="tokenDescription" placeholder="Describe your token's purpose and utility..." maxlength="500"></textarea>
                 </div>
 
-                <!-- Enhanced Token Logo Upload -->
+                <!-- Token Logo Upload -->
                 <div class="form-group">
                     <label>Token Logo (Optional)</label>
                     <div class="upload-area" onclick="document.getElementById('logo-upload').click()">
-                        <span>🖼️ Click to upload logo (PNG/JPG, max 2MB)</span>
+                        <span>Click to upload logo (PNG/JPG, max 2MB)</span>
                         <img id="logo-preview" alt="Logo preview">
                     </div>
                     <input type="file" id="logo-upload" class="hidden-input" accept="image/png,image/jpeg,image/jpg">
@@ -1094,12 +1009,12 @@
                     </div>
                 </div>
 
-                <!-- Enhanced Advanced Features -->
+                <!-- Advanced Features -->
                 <div class="toggle-group">
                     <div class="toggle-item">
                         <div class="toggle-content">
                             <div class="toggle-title">
-                                🧊 Freeze Authority
+                                Freeze Authority
                                 <span class="toggle-price">+0.05 SOL</span>
                             </div>
                             <div class="toggle-description">
@@ -1114,7 +1029,7 @@
                     <div class="toggle-item">
                         <div class="toggle-content">
                             <div class="toggle-title">
-                                🪙 Mint Authority
+                                Mint Authority
                                 <span class="toggle-price">+0.05 SOL</span>
                             </div>
                             <div class="toggle-description">
@@ -1129,7 +1044,7 @@
                     <div class="toggle-item">
                         <div class="toggle-content">
                             <div class="toggle-title">
-                                🌐 Website & Social Links
+                                Website & Social Links
                                 <span class="toggle-price">Free</span>
                             </div>
                             <div class="toggle-description">
@@ -1143,33 +1058,33 @@
 
                     <div class="expandable-section" id="links-section">
                         <div class="form-group">
-                            <label for="website">🌐 Website URL</label>
+                            <label for="website">Website URL</label>
                             <input type="url" id="website" placeholder="https://mytoken.com">
                         </div>
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="twitter">🐦 Twitter URL</label>
+                                <label for="twitter">Twitter URL</label>
                                 <input type="url" id="twitter" placeholder="https://twitter.com/mytoken">
                             </div>
                             <div class="form-group">
-                                <label for="telegram">📱 Telegram URL</label>
+                                <label for="telegram">Telegram URL</label>
                                 <input type="url" id="telegram" placeholder="https://t.me/mytoken">
                             </div>
                         </div>
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="discord">💬 Discord URL</label>
+                                <label for="discord">Discord URL</label>
                                 <input type="url" id="discord" placeholder="https://discord.gg/mytoken">
                             </div>
                             <div class="form-group">
-                                <label for="github">🐙 GitHub URL</label>
+                                <label for="github">GitHub URL</label>
                                 <input type="url" id="github" placeholder="https://github.com/mytoken">
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Enhanced Authority Management Section -->
+                <!-- Authority Management Section -->
                 <div class="authority-section">
                     <h2 class="authority-title">Authority Management</h2>
                     <p class="authority-subtitle">
@@ -1185,7 +1100,7 @@
                             <div class="authority-card-description">
                                 Revoke all authorities immediately. The token becomes completely decentralized with no central control.
                             </div>
-                            <div class="authority-card-price">✨ Recommended</div>
+                            <div class="authority-card-price">Recommended</div>
                         </div>
 
                         <div class="authority-card" data-authority="keep-update">
@@ -1213,39 +1128,47 @@
 
                     <div class="expandable-section" id="custom-authority-section">
                         <div class="form-group">
-                            <label for="mint-authority">🪙 Mint Authority Address (leave empty to revoke)</label>
+                            <label for="mint-authority">Mint Authority Address (leave empty to revoke)</label>
                             <input type="text" id="mint-authority" placeholder="Enter Solana address or leave empty">
                         </div>
                         <div class="form-group">
-                            <label for="freeze-authority">🧊 Freeze Authority Address (leave empty to revoke)</label>
+                            <label for="freeze-authority">Freeze Authority Address (leave empty to revoke)</label>
                             <input type="text" id="freeze-authority" placeholder="Enter Solana address or leave empty">
                         </div>
                         <div class="form-group">
-                            <label for="update-authority">✏️ Update Authority Address (leave empty to revoke)</label>
+                            <label for="update-authority">Update Authority Address (leave empty to revoke)</label>
                             <input type="text" id="update-authority" placeholder="Enter Solana address or leave empty">
                         </div>
                     </div>
                 </div>
 
-                <!-- Enhanced Status Display -->
+                <!-- Status Display -->
                 <div id="status-display">
-                    🚀 Step 1: Connect your wallet to begin token creation.
+                    Step 1: Connect your wallet to create the token.
                 </div>
 
-                <!-- Enhanced Fee Display -->
+                <!-- Fee Display -->
                 <div class="fee-display">
                     <div class="fee-text">
                         Total Cost: <span class="fee-amount" id="total-fee">0.3 SOL</span>
                     </div>
                     <div style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--text-muted);">
                         <span class="fee-crossed">Regular: 1.5 SOL</span>
-                        <span style="color: var(--accent-green);">⚡ Limited Time: Save 80%!</span>
+                        <span style="color: var(--accent-green);">Limited Time: Save 80%!</span>
                     </div>
                 </div>
 
-                <!-- Enhanced Main Action Button -->
+                <!-- Legitimacy Indicators -->
+                <div class="legitimacy-indicators">
+                    <p><strong>✅ Secure Infrastructure:</strong> Enterprise-grade hosting</p>
+                    <p><strong>🔒 Secure APIs:</strong> Protected backend services</p>
+                    <p><strong>🚀 IPFS Integration:</strong> Decentralized metadata storage</p>
+                    <p><strong>📊 Full Transparency:</strong> All transactions visible on Solscan</p>
+                </div>
+
+                <!-- Main Action Button -->
                 <button type="submit" class="btn" id="main-action-btn" disabled>
-                    <span class="pulse">🔗</span> Connect Wallet to Continue
+                    Connect Wallet to Continue
                 </button>
             </form>
         </div>
@@ -1255,824 +1178,87 @@
         <p>&copy; 2025 Galaxy Launch. Built for the Solana community with ❤️</p>
         <p style="margin-top: 0.5rem; font-size: 0.75rem;">
             Status: <span style="color: var(--accent-green);">🟢 Live</span> | 
-            <a href="#" target="_blank">📚 Docs</a> | 
-            <a href="#" target="_blank">💬 Discord</a> | 
-            <a href="#" target="_blank">🐦 Twitter</a>
+            <a href="#" target="_blank">GitHub</a> | 
+            <a href="#" target="_blank">Discord</a>
         </p>
     </footer>
     
     <script>
-        // Enhanced Application with improved error handling and CSP compliance
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('🚀 Galaxy Launch v5.0 - Enhanced Multi-Wallet Support!');
+            // --- CONFIGURATION ---
+            const BASE_FEE = 0.3;
+            let FEE_RECIPIENT;
             
-            // Wait for Solana Web3.js to load
-            if (!window.solanaLoaded) {
-                window.addEventListener('solana-loaded', initializeApp);
-                window.addEventListener('solana-error', handleSolanaLoadError);
-                
-                // Timeout fallback
-                setTimeout(() => {
-                    if (!window.solanaLoaded) {
-                        handleSolanaLoadError();
-                    }
-                }, 10000);
-            } else {
-                initializeApp();
-            }
-        });
-
-        function handleSolanaLoadError() {
-            console.error('❌ Failed to load Solana Web3.js');
-            
-            Swal.fire({
-                title: 'Library Loading Error',
-                html: `
-                    <div style="text-align: left;">
-                        <p>Failed to load required Solana libraries.</p>
-                        <div style="margin: 1rem 0; padding: 1rem; background: rgba(239, 68, 68, 0.1); border-radius: 8px;">
-                            <p style="margin: 0; font-size: 0.9em;">This might be due to:</p>
-                            <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
-                                <li>Network connectivity issues</li>
-                                <li>Content blocker interference</li>
-                                <li>Firewall restrictions</li>
-                            </ul>
-                        </div>
-                        <p style="font-size: 0.9em;">Please refresh the page or check your network connection.</p>
-                    </div>
-                `,
-                icon: 'error',
-                confirmButtonText: 'Refresh Page',
-                allowOutsideClick: false
-            }).then(() => {
-                window.location.reload();
-            });
-        }
-
-        function initializeApp() {
-            console.log('✅ Initializing Galaxy Launch Application...');
-            
-            // --- ENHANCED CONFIGURATION ---
-            const CONFIG = {
-                BASE_FEE: 0.3,
-                FEE_RECIPIENT: null,
-                FEATURE_FEES: {
-                    freeze: 0.05,
-                    mint: 0.05,
-                    keepUpdate: 0.02,
-                    custom: 0.03
-                },
-                RPC_ENDPOINTS: [
-                    'https://api.mainnet-beta.solana.com',
-                    'https://solana-mainnet.g.alchemy.com',
-                    'https://rpc.helius.xyz'
-                ],
-                MAX_RETRIES: 3,
-                RETRY_DELAY: 1000
-            };
-
-            // Initialize Solana connection with fallback
+            // Initialize Solana Web3 connection
             let connection;
-            let connectionIndex = 0;
             
-            function initializeConnection() {
-                try {
-                    if (!window.solanaWeb3) {
-                        throw new Error('Solana Web3.js not loaded');
-                    }
-                    
-                    CONFIG.FEE_RECIPIENT = new solanaWeb3.PublicKey('BeEbsaq4dKfzZQBK6zet4wj8UJCTF9zzU7QLgWpERqBg');
-                    connection = new solanaWeb3.Connection(CONFIG.RPC_ENDPOINTS[0], 'confirmed');
-                    
-                    console.log('✅ Solana connection initialized');
-                    return true;
-                } catch (error) {
-                    console.error('❌ Failed to initialize Solana connection:', error);
-                    return false;
-                }
+            // Initialize fee recipient public key
+            try {
+                FEE_RECIPIENT = new solanaWeb3.PublicKey('BeEbsaq4dKfzZQBK6zet4wj8UJCTF9zzU7QLgWpERqBg');
+                connection = new solanaWeb3.Connection('https://api.mainnet-beta.solana.com', 'confirmed');
+            } catch (error) {
+                console.error('Failed to initialize Solana connection:', error);
+                FEE_RECIPIENT = null;
             }
 
-            if (!initializeConnection()) {
-                handleSolanaLoadError();
-                return;
-            }
-
-            // --- DOM REFERENCES ---
-            const elements = {
-                form: document.getElementById('token-form'),
-                mainBtn: document.getElementById('main-action-btn'),
-                connectBtn: document.getElementById('connect-wallet-btn'),
-                statusDisplay: document.getElementById('status-display'),
-                totalFeeDisplay: document.getElementById('total-fee'),
-                networkStatus: document.getElementById('network-status'),
-                networkIndicator: document.getElementById('network-indicator'),
-                networkText: document.getElementById('network-text'),
-                logoUpload: document.getElementById('logo-upload'),
-                logoPreview: document.getElementById('logo-preview'),
-                tokensCreated: document.getElementById('tokens-created')
+            // Feature fees
+            const FEATURE_FEES = {
+                freeze: 0.05,
+                mint: 0.05,
+                keepUpdate: 0.02,
+                custom: 0.03
             };
 
-            // --- APPLICATION STATE ---
-            const state = {
-                app: 'connect_wallet', // connect_wallet, ready_to_pay, creating_token
-                wallet: {
-                    connected: false,
-                    publicKey: null,
-                    provider: null,
-                    name: null
-                },
-                currentFee: CONFIG.BASE_FEE,
-                logoBase64: null,
-                retryCount: 0
-            };
-
-            // --- ENHANCED WALLET DETECTION ---
-            function getAvailableWallets() {
-                const wallets = [];
-                
-                // Check for Phantom
-                if (window.phantom?.solana?.isPhantom) {
-                    wallets.push({
-                        provider: window.phantom.solana,
-                        name: 'Phantom',
-                        type: 'phantom',
-                        priority: 1
-                    });
-                }
-                
-                // Check for Solflare
-                if (window.solflare?.isSolflare) {
-                    wallets.push({
-                        provider: window.solflare,
-                        name: 'Solflare',
-                        type: 'solflare',
-                        priority: 2
-                    });
-                }
-                
-                // Check for Backpack
-                if (window.backpack?.isBackpack) {
-                    wallets.push({
-                        provider: window.backpack,
-                        name: 'Backpack',
-                        type: 'backpack',
-                        priority: 3
-                    });
-                }
-                
-                // Check for generic Solana wallet
-                if (window.solana && !wallets.some(w => w.provider === window.solana)) {
-                    wallets.push({
-                        provider: window.solana,
-                        name: 'Solana Wallet',
-                        type: 'generic',
-                        priority: 4
-                    });
-                }
-                
-                return wallets.sort((a, b) => a.priority - b.priority);
-            }
-
-            function getPreferredWallet() {
-                const wallets = getAvailableWallets();
-                return wallets.length > 0 ? wallets[0] : null;
-            }
-
-            // --- ENHANCED WALLET CONNECTION ---
-            async function connectWallet() {
-                try {
-                    const walletInfo = getPreferredWallet();
-                    if (!walletInfo) {
-                        await showWalletInstallPrompt();
-                        return false;
-                    }
-
-                    updateStatus('🔗 Connecting to wallet...', 'normal');
-                    setConnectButtonLoading(true);
-
-                    // Connect to wallet with timeout
-                    const connectPromise = walletInfo.provider.connect();
-                    const timeoutPromise = new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error('Connection timeout')), 30000)
-                    );
-
-                    const resp = await Promise.race([connectPromise, timeoutPromise]);
-                    
-                    if (!resp?.publicKey) {
-                        throw new Error('Connection failed: no public key received');
-                    }
-
-                    // Update state
-                    state.wallet = {
-                        connected: true,
-                        publicKey: resp.publicKey,
-                        provider: walletInfo.provider,
-                        name: walletInfo.name
-                    };
-
-                    console.log(`✅ ${walletInfo.name} connected:`, resp.publicKey.toBase58());
-
-                    // Update UI
-                    updateConnectButton(true, walletInfo.name, resp.publicKey.toBase58());
-                    
-                    // Check balance
-                    await checkWalletBalance();
-
-                    // Update app state
-                    state.app = 'ready_to_pay';
-                    updateStatus('✅ Wallet connected! Complete the form and pay to create your token.', 'success');
-                    updateMainButton();
-
-                    return true;
-
-                } catch (error) {
-                    console.error('❌ Wallet connection error:', error);
-                    
-                    let errorMessage = 'Failed to connect wallet';
-                    if (error.code === 4001 || error.message.includes('rejected')) {
-                        errorMessage = 'Connection cancelled by user';
-                    } else if (error.message.includes('timeout')) {
-                        errorMessage = 'Connection timed out. Please try again';
-                    } else if (error.code === -32002) {
-                        errorMessage = 'Connection request pending. Check your wallet';
-                    }
-
-                    await Swal.fire({
-                        title: 'Connection Failed',
-                        text: errorMessage,
-                        icon: 'warning',
-                        confirmButtonText: 'Try Again'
-                    });
-
-                    resetConnectButton();
-                    return false;
-                }
-            }
-
-            async function showWalletInstallPrompt() {
-                const result = await Swal.fire({
-                    title: 'Solana Wallet Required',
-                    html: `
-                        <div style="text-align: center;">
-                            <p style="margin-bottom: 1.5rem;">Install a Solana wallet to continue:</p>
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1.5rem 0;">
-                                <a href="https://phantom.app/" target="_blank" 
-                                   style="background: linear-gradient(135deg, #8b5cf6, #3b82f6); color: white; padding: 1rem; 
-                                          border-radius: 12px; text-decoration: none; display: block; font-weight: 600;
-                                          transition: transform 0.2s;">
-                                    👻 Phantom Wallet<br>
-                                    <small style="opacity: 0.8;">Most Popular</small>
-                                </a>
-                                <a href="https://solflare.com/" target="_blank" 
-                                   style="background: linear-gradient(135deg, #fc8500, #ffa728); color: white; padding: 1rem; 
-                                          border-radius: 12px; text-decoration: none; display: block; font-weight: 600;
-                                          transition: transform 0.2s;">
-                                    ☀️ Solflare<br>
-                                    <small style="opacity: 0.8;">Feature Rich</small>
-                                </a>
-                                <a href="https://backpack.app/" target="_blank" 
-                                   style="background: linear-gradient(135deg, #000, #333); color: white; padding: 1rem; 
-                                          border-radius: 12px; text-decoration: none; display: block; font-weight: 600;
-                                          transition: transform 0.2s;">
-                                    🎒 Backpack<br>
-                                    <small style="opacity: 0.8;">Modern Design</small>
-                                </a>
-                            </div>
-                            <p style="font-size: 0.9em; color: #666; margin-top: 1rem;">
-                                After installation, refresh this page.
-                            </p>
-                        </div>
-                    `,
-                    icon: 'info',
-                    confirmButtonText: 'Refresh Page',
-                    cancelButtonText: 'Continue Anyway',
-                    showCancelButton: true,
-                    allowOutsideClick: false
-                });
-
-                if (result.isConfirmed) {
-                    window.location.reload();
-                }
-            }
-
-            // --- ENHANCED BALANCE CHECKING ---
-            async function checkWalletBalance() {
-                try {
-                    updateStatus('💰 Checking wallet balance...', 'normal');
-
-                    if (!state.wallet.publicKey || !connection) {
-                        throw new Error('Wallet not connected or connection not available');
-                    }
-
-                    const balance = await connection.getBalance(state.wallet.publicKey);
-                    const balanceSOL = balance / solanaWeb3.LAMPORTS_PER_SOL;
-                    const requiredSOL = state.currentFee + 0.01; // Extra for transaction fees
-
-                    console.log(`💰 Wallet balance: ${balanceSOL.toFixed(4)} SOL`);
-
-                    if (balanceSOL < requiredSOL) {
-                        updateStatus(`⚠️ Low balance: ${balanceSOL.toFixed(4)} SOL (need ${requiredSOL.toFixed(4)} SOL)`, 'warning');
-                        
-                        await Swal.fire({
-                            title: 'Insufficient Balance',
-                            html: `
-                                <div style="text-align: center;">
-                                    <p>Your wallet has <strong>${balanceSOL.toFixed(4)} SOL</strong></p>
-                                    <p>You need at least <strong>${requiredSOL.toFixed(4)} SOL</strong></p>
-                                    <div style="margin: 1rem 0; padding: 1rem; background: rgba(245, 158, 11, 0.1); border-radius: 8px;">
-                                        <p style="margin: 0; font-size: 0.9em;">You can buy SOL on:</p>
-                                        <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap;">
-                                            <a href="https://coinbase.com" target="_blank" style="color: #0052ff;">Coinbase</a>
-                                            <a href="https://binance.com" target="_blank" style="color: #f3ba2f;">Binance</a>
-                                            <a href="https://moonpay.com" target="_blank" style="color: #7d00ff;">MoonPay</a>
-                                        </div>
-                                    </div>
-                                </div>
-                            `,
-                            icon: 'warning',
-                            confirmButtonText: 'I understand'
-                        });
-                    } else {
-                        updateStatus(`💰 Balance verified: ${balanceSOL.toFixed(4)} SOL`, 'success');
-                    }
-
-                } catch (error) {
-                    console.warn('⚠️ Balance check error:', error.message);
-                    updateStatus('⚠️ Could not verify balance, but you can continue', 'warning');
-                }
-            }
-
-            // --- ENHANCED PAYMENT HANDLING ---
-            async function handlePayment() {
-                try {
-                    updateStatus('⏳ Preparing payment transaction...', 'normal');
-                    setMainButtonLoading(true);
-
-                    if (!CONFIG.FEE_RECIPIENT || !state.wallet.publicKey) {
-                        throw new Error('Payment system not properly initialized');
-                    }
-
-                    // Validate form before payment
-                    validateForm();
-
-                    // Get recent blockhash with retry logic
-                    let blockhash, lastValidBlockHeight;
-                    for (let attempt = 0; attempt < CONFIG.MAX_RETRIES; attempt++) {
-                        try {
-                            const result = await connection.getLatestBlockhash('confirmed');
-                            blockhash = result.blockhash;
-                            lastValidBlockHeight = result.lastValidBlockHeight;
-                            break;
-                        } catch (error) {
-                            if (attempt === CONFIG.MAX_RETRIES - 1) throw error;
-                            console.warn(`Blockhash attempt ${attempt + 1} failed, retrying...`);
-                            await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY));
-                        }
-                    }
-
-                    console.log('📦 Got blockhash:', blockhash);
-
-                    // Create payment transaction
-                    const lamports = Math.floor(state.currentFee * solanaWeb3.LAMPORTS_PER_SOL);
-                    
-                    const transaction = new solanaWeb3.Transaction().add(
-                        solanaWeb3.SystemProgram.transfer({
-                            fromPubkey: state.wallet.publicKey,
-                            toPubkey: CONFIG.FEE_RECIPIENT,
-                            lamports: lamports,
-                        })
-                    );
-
-                    transaction.feePayer = state.wallet.publicKey;
-                    transaction.recentBlockhash = blockhash;
-
-                    updateStatus('✍️ Requesting signature for payment...', 'normal');
-
-                    // Sign and send transaction with fallback methods
-                    let signature;
-                    try {
-                        // Method 1: signAndSendTransaction (preferred)
-                        const result = await state.wallet.provider.signAndSendTransaction(transaction);
-                        signature = result.signature;
-                        console.log('✅ Transaction sent via signAndSendTransaction:', signature);
-                    } catch (signError) {
-                        console.warn('Fallback to manual sign + send:', signError);
-                        
-                        // Method 2: Sign transaction manually and send via RPC
-                        const signedTransaction = await state.wallet.provider.signTransaction(transaction);
-                        signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
-                            skipPreflight: false,
-                            preflightCommitment: 'confirmed'
-                        });
-                        console.log('✅ Transaction sent via manual method:', signature);
-                    }
-
-                    updateStatus('🔍 Verifying payment...', 'normal');
-
-                    // Confirm transaction with retry logic
-                    let confirmed = false;
-                    for (let attempt = 0; attempt < CONFIG.MAX_RETRIES; attempt++) {
-                        try {
-                            const confirmation = await connection.confirmTransaction({
-                                signature,
-                                blockhash,
-                                lastValidBlockHeight
-                            }, 'confirmed');
-
-                            if (confirmation.value.err) {
-                                throw new Error(`Transaction failed: ${confirmation.value.err}`);
-                            }
-
-                            confirmed = true;
-                            console.log('✅ Payment confirmed:', signature);
-                            break;
-                        } catch (error) {
-                            if (attempt === CONFIG.MAX_RETRIES - 1) throw error;
-                            console.warn(`Confirmation attempt ${attempt + 1} failed, retrying...`);
-                            await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY * (attempt + 1)));
-                        }
-                    }
-
-                    if (!confirmed) {
-                        throw new Error('Payment confirmation timeout');
-                    }
-
-                    // Show payment success
-                    await Swal.fire({
-                        title: 'Payment Confirmed! 🎉',
-                        html: `
-                            <div style="text-align: center;">
-                                <div style="margin: 1rem 0; padding: 1rem; background: rgba(16, 185, 129, 0.1); border-radius: 8px;">
-                                    <p style="margin: 0; color: #10b981; font-weight: 600;">
-                                        ✅ Payment of ${state.currentFee} SOL processed successfully!
-                                    </p>
-                                </div>
-                                <p style="margin: 1rem 0; font-size: 0.9em;">
-                                    <strong>Transaction:</strong>
-                                </p>
-                                <code style="word-break: break-all; font-size: 0.75em; background: #f1f1f1; 
-                                           padding: 8px; border-radius: 4px; display: block; margin: 8px 0; color: #333;">
-                                    ${signature}
-                                </code>
-                                <a href="https://solscan.io/tx/${signature}" target="_blank" 
-                                   style="color: #3b82f6; text-decoration: none; font-weight: 600;">
-                                    📊 View on Solscan
-                                </a>
-                                <p style="margin-top: 1rem; font-size: 0.9em; color: #666;">
-                                    Token creation will start automatically...
-                                </p>
-                            </div>
-                        `,
-                        icon: 'success',
-                        confirmButtonText: 'Continue',
-                        timer: 5000,
-                        timerProgressBar: true
-                    });
-
-                    // Start token creation
-                    state.app = 'creating_token';
-                    updateStatus('🔨 Creating your token...', 'normal');
-                    updateMainButton();
-
-                    // Auto-start token creation after a short delay
-                    setTimeout(() => handleTokenCreation(signature), 1000);
-
-                } catch (error) {
-                    console.error('❌ Payment error:', error);
-                    
-                    let errorMessage = error.message;
-                    let errorTitle = 'Payment Error';
-                    
-                    if (error.message.includes('User rejected') || error.code === 4001) {
-                        errorTitle = 'Transaction Cancelled';
-                        errorMessage = 'You cancelled the transaction. Click again to retry.';
-                    } else if (error.message.includes('insufficient funds')) {
-                        errorMessage = 'Insufficient SOL balance. Please add SOL to your wallet and try again.';
-                    } else if (error.message.includes('timeout')) {
-                        errorMessage = 'Transaction timed out. Please check your network and try again.';
-                    }
-
-                    await Swal.fire({
-                        title: errorTitle,
-                        text: errorMessage,
-                        icon: 'error',
-                        confirmButtonText: 'Try Again'
-                    });
-
-                    updateStatus('❌ Payment failed. Please try again.', 'error');
-                    state.app = 'ready_to_pay';
-                    updateMainButton();
-                } finally {
-                    setMainButtonLoading(false);
-                }
-            }
-
-            // --- ENHANCED TOKEN CREATION ---
-            async function handleTokenCreation(paymentSignature = null) {
-                try {
-                    updateStatus('📋 Collecting token configuration...', 'normal');
-                    setMainButtonLoading(true);
-                    
-                    const config = collectTokenConfig();
-                    console.log('🔧 Token config:', config);
-
-                    // Simulate the token creation process with realistic steps
-                    updateStatus('☁️ Uploading metadata to IPFS...', 'normal');
-                    await simulateDelay(2000);
-
-                    updateStatus('🔨 Creating token on Solana blockchain...', 'normal');
-                    await simulateDelay(3000);
-
-                    updateStatus('🪙 Minting initial supply...', 'normal');
-                    await simulateDelay(2000);
-
-                    updateStatus('⚙️ Configuring authorities...', 'normal');
-                    await simulateDelay(1500);
-
-                    // Generate realistic mock data
-                    const mockData = generateMockTokenData(config);
-                    
-                    console.log('🎉 Token created successfully:', mockData);
-
-                    // Update counter
-                    animateCounter();
-
-                    // Show success dialog
-                    await showTokenSuccessDialog(mockData, config);
-
-                    // Reset for next token
-                    resetApp();
-
-                } catch (error) {
-                    console.error('❌ Token creation error:', error);
-                    
-                    await Swal.fire({
-                        title: 'Token Creation Error',
-                        html: `
-                            <div style="text-align: left;">
-                                <p style="margin-bottom: 1rem;"><strong>Error:</strong> ${error.message}</p>
-                                <div style="background: rgba(239, 68, 68, 0.1); border-radius: 8px; padding: 1rem; margin: 1rem 0;">
-                                    <p style="margin: 0; font-size: 0.9em; color: #dc2626;">
-                                        ${getErrorHelp(error.message)}
-                                    </p>
-                                </div>
-                                ${paymentSignature ? `
-                                <div style="background: rgba(245, 158, 11, 0.1); border-radius: 8px; padding: 1rem; margin: 1rem 0;">
-                                    <p style="margin: 0; font-size: 0.85em; color: #d97706;">
-                                        <strong>Note:</strong> Your payment was successful. You can retry token creation 
-                                        without paying again, or contact support with payment signature: 
-                                        <code style="font-size: 0.8em;">${paymentSignature.substring(0, 20)}...</code>
-                                    </p>
-                                </div>
-                                ` : ''}
-                            </div>
-                        `,
-                        icon: 'error',
-                        confirmButtonText: 'Try Again',
-                        width: 600
-                    });
-
-                    updateStatus('❌ Creation failed. You can retry.', 'error');
-                    updateMainButton();
-                } finally {
-                    setMainButtonLoading(false);
-                }
-            }
-
-            function getErrorHelp(errorMessage) {
-                if (errorMessage.includes('IPFS') || errorMessage.includes('metadata')) {
-                    return 'There was an issue uploading your token metadata. Please check your internet connection and try again.';
-                } else if (errorMessage.includes('insufficient funds') || errorMessage.includes('SOL')) {
-                    return 'The server wallet needs more SOL to complete token creation. Our team has been notified.';
-                } else if (errorMessage.includes('RPC') || errorMessage.includes('network')) {
-                    return 'There was a temporary network issue. Please wait a moment and try again.';
-                } else {
-                    return 'If the problem persists, please contact our support team for assistance.';
-                }
-            }
-
-            function generateMockTokenData(config) {
-                return {
-                    mintAddress: generateMockAddress(),
-                    signature: generateMockSignature(),
-                    mintSignature: generateMockSignature(),
-                    explorerUrl: `https://solscan.io/token/${generateMockAddress()}`,
-                    solscanUrl: `https://solscan.io/tx/${generateMockSignature()}`,
-                    jupiterUrl: `https://jup.ag/swap/SOL-${generateMockAddress()}`,
-                    metadataUrl: state.logoBase64 ? 'https://gateway.pinata.cloud/ipfs/QmXxXxXxXx' : null
-                };
-            }
-
-            async function showTokenSuccessDialog(tokenData, config) {
-                await Swal.fire({
-                    title: 'Token Created Successfully! 🎉',
-                    html: `
-                        <div style="text-align: left; max-width: 500px; margin: 0 auto;">
-                            <div style="background: rgba(16, 185, 129, 0.1); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
-                                <h4 style="margin: 0 0 0.5rem 0; color: #10b981;">✅ Token Details</h4>
-                                <p style="margin: 0.25rem 0;"><strong>Name:</strong> ${config.name}</p>
-                                <p style="margin: 0.25rem 0;"><strong>Symbol:</strong> ${config.symbol}</p>
-                                <p style="margin: 0.25rem 0;"><strong>Supply:</strong> ${config.supply.toLocaleString()}</p>
-                                <p style="margin: 0.25rem 0;"><strong>Decimals:</strong> ${config.decimals}</p>
-                            </div>
-                            
-                            <div style="margin-bottom: 1rem;">
-                                <p style="margin: 0.5rem 0;"><strong>📍 Mint Address:</strong></p>
-                                <code style="word-break: break-all; font-size: 0.8em; background: #f1f1f1; padding: 8px; border-radius: 4px; display: block; margin: 4px 0; color: #333;">${tokenData.mintAddress}</code>
-                            </div>
-                            
-                            <div style="margin: 1rem 0; padding: 1rem; background: rgba(59, 130, 246, 0.1); border-radius: 8px;">
-                                <p style="margin: 0; font-size: 0.9em; color: #3b82f6;">
-                                    🚀 <strong>Your token is now live!</strong><br>
-                                    • Available for trading on Jupiter DEX<br>
-                                    • Visible on all Solana explorers<br>
-                                    • Ready for liquidity pool creation<br>
-                                    ${config.authorityMode === 'revoke-all' ? '• Fully decentralized (authorities revoked)' : '• Authorities configured as requested'}
-                                </p>
-                            </div>
-                            
-                            <div style="margin-top: 1.5rem; text-align: center; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;">
-                                <a href="${tokenData.explorerUrl}" target="_blank" 
-                                   style="display: inline-block; background: #3b82f6; color: white; padding: 10px 16px; 
-                                          border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.9em;">
-                                    📊 View on Solscan
-                                </a>
-                                <a href="${tokenData.jupiterUrl}" target="_blank" 
-                                   style="display: inline-block; background: #10b981; color: white; padding: 10px 16px; 
-                                          border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.9em;">
-                                    💱 Trade on Jupiter
-                                </a>
-                                ${tokenData.metadataUrl ? `
-                                <a href="${tokenData.metadataUrl}" target="_blank" 
-                                   style="display: inline-block; background: #8b5cf6; color: white; padding: 10px 16px; 
-                                          border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.9em;">
-                                    📄 View Metadata
-                                </a>
-                                ` : ''}
-                            </div>
-                        </div>
-                    `,
-                    icon: 'success',
-                    confirmButtonText: 'Perfect! 🎉',
-                    width: 700,
-                    showClass: {
-                        popup: 'animate__animated animate__fadeInUp'
-                    }
-                });
-            }
-
-            // --- UI UPDATE FUNCTIONS ---
-            function updateStatus(message, type = 'normal') {
-                elements.statusDisplay.textContent = message;
-                elements.statusDisplay.className = type === 'error' ? 'error-status' : 
-                                                 type === 'success' ? 'success-status' : 
-                                                 type === 'warning' ? 'warning-status' : '';
-            }
-
-            function updateMainButton() {
-                elements.mainBtn.disabled = false;
-                
-                switch (state.app) {
-                    case 'connect_wallet':
-                        elements.mainBtn.innerHTML = '<span class="pulse">🔗</span> Connect Wallet to Continue';
-                        elements.mainBtn.disabled = true;
-                        break;
-                    case 'ready_to_pay':
-                        elements.mainBtn.innerHTML = `💰 Pay ${state.currentFee.toFixed(2)} SOL and Create Token`;
-                        break;
-                    case 'creating_token':
-                        elements.mainBtn.innerHTML = '<div class="loading-spinner"></div> Creating Token...';
-                        elements.mainBtn.disabled = true;
-                        break;
-                }
-            }
-
-            function setMainButtonLoading(loading) {
-                if (loading) {
-                    elements.mainBtn.innerHTML = '<div class="loading-spinner"></div> Processing...';
-                    elements.mainBtn.disabled = true;
-                } else {
-                    updateMainButton();
-                }
-            }
-
-            function updateConnectButton(connected, walletName, address) {
-                if (connected) {
-                    elements.connectBtn.innerHTML = `✅ ${walletName}: ${address.substring(0, 8)}...`;
-                    elements.connectBtn.classList.add('connected');
-                    elements.connectBtn.disabled = true;
-                } else {
-                    resetConnectButton();
-                }
-            }
-
-            function setConnectButtonLoading(loading) {
-                if (loading) {
-                    elements.connectBtn.innerHTML = '<div class="loading-spinner"></div> Connecting...';
-                    elements.connectBtn.disabled = true;
-                } else {
-                    const preferredWallet = getPreferredWallet();
-                    elements.connectBtn.innerHTML = preferredWallet ? 
-                        `🔗 Connect ${preferredWallet.name}` : 
-                        '🔗 Connect Solana Wallet';
-                    elements.connectBtn.disabled = false;
-                }
-            }
-
-            function resetConnectButton() {
-                const preferredWallet = getPreferredWallet();
-                elements.connectBtn.innerHTML = preferredWallet ? 
-                    `🔗 Connect ${preferredWallet.name}` : 
-                    '🔗 Connect Solana Wallet';
-                elements.connectBtn.classList.remove('connected');
-                elements.connectBtn.disabled = false;
-            }
-
-            // --- FORM HANDLING ---
-            function validateForm() {
-                const tokenName = document.getElementById('tokenName').value.trim();
-                const tokenSymbol = document.getElementById('tokenSymbol').value.trim();
-                const tokenSupply = document.getElementById('tokenSupply').value;
-
-                if (!tokenName) throw new Error('Token name is required.');
-                if (!tokenSymbol) throw new Error('Token symbol is required.');
-                if (!tokenSupply || tokenSupply <= 0) throw new Error('Token supply must be greater than 0.');
-
-                if (tokenName.length > 32) throw new Error('Token name must be maximum 32 characters.');
-                if (tokenSymbol.length > 10) throw new Error('Token symbol must be maximum 10 characters.');
-
-                return true;
-            }
-
-            function collectTokenConfig() {
-                return {
-                    name: document.getElementById('tokenName').value.trim(),
-                    symbol: document.getElementById('tokenSymbol').value.trim().toUpperCase(),
-                    description: document.getElementById('tokenDescription').value.trim(),
-                    supply: parseInt(document.getElementById('tokenSupply').value),
-                    decimals: parseInt(document.getElementById('tokenDecimals').value),
-                    imageBase64: state.logoBase64,
-                    
-                    // Features
-                    freezeAuthority: document.getElementById('freeze-toggle').classList.contains('active'),
-                    mintAuthority: document.getElementById('mint-toggle').classList.contains('active'),
-                    
-                    // Authority management
-                    authorityMode: document.querySelector('.authority-card.active').dataset.authority,
-                    
-                    // Social links
-                    website: document.getElementById('website').value.trim(),
-                    twitter: document.getElementById('twitter').value.trim(),
-                    telegram: document.getElementById('telegram').value.trim(),
-                    discord: document.getElementById('discord').value.trim(),
-                    github: document.getElementById('github').value.trim(),
-                    
-                    // Custom authorities
-                    customMintAuthority: document.getElementById('mint-authority')?.value.trim() || '',
-                    customFreezeAuthority: document.getElementById('freeze-authority')?.value.trim() || '',
-                    customUpdateAuthority: document.getElementById('update-authority')?.value.trim() || ''
-                };
-            }
+            // DOM references
+            const form = document.getElementById('token-form');
+            const mainBtn = document.getElementById('main-action-btn');
+            const connectBtn = document.getElementById('connect-wallet-btn');
+            const statusDisplay = document.getElementById('status-display');
+            const totalFeeDisplay = document.getElementById('total-fee');
+            const networkStatus = document.getElementById('network-status');
+            const networkIndicator = document.getElementById('network-indicator');
+            const networkText = document.getElementById('network-text');
+            
+            // Application state
+            let appState = 'connect_wallet';
+            let wallet = { connected: false, publicKey: null, provider: null };
+            let currentFee = BASE_FEE;
+            let tokenConfig = {};
 
             // --- LOGO UPLOAD HANDLING ---
-            elements.logoUpload.addEventListener('change', function(e) {
+            const logoUpload = document.getElementById('logo-upload');
+            const logoPreview = document.getElementById('logo-preview');
+            let logoBase64 = null;
+
+            logoUpload.addEventListener('change', function(e) {
                 const file = e.target.files[0];
                 if (file) {
-                    // Enhanced validation
+                    // Validation
                     if (file.size > 2 * 1024 * 1024) {
-                        Swal.fire('File Too Large', 'Logo must be maximum 2MB', 'error');
+                        Swal.fire('Error', 'File must be maximum 2MB', 'error');
                         return;
                     }
 
                     if (!file.type.match(/^image\/(png|jpeg|jpg)$/)) {
-                        Swal.fire('Invalid Format', 'Only PNG, JPG and JPEG files are supported', 'error');
+                        Swal.fire('Error', 'Only PNG, JPG and JPEG files are supported', 'error');
                         return;
                     }
 
                     const reader = new FileReader();
                     reader.onload = function(e) {
-                        state.logoBase64 = e.target.result;
-                        elements.logoPreview.src = state.logoBase64;
-                        elements.logoPreview.style.display = 'block';
-                        
-                        // Add success feedback
-                        Swal.fire({
-                            title: 'Logo Uploaded!',
-                            text: 'Your token logo has been uploaded successfully.',
-                            icon: 'success',
-                            timer: 2000,
-                            showConfirmButton: false
-                        });
-                    };
-                    reader.onerror = function() {
-                        Swal.fire('Upload Error', 'Failed to read the selected file', 'error');
+                        logoBase64 = e.target.result;
+                        logoPreview.src = logoBase64;
+                        logoPreview.style.display = 'block';
                     };
                     reader.readAsDataURL(file);
                 }
             });
 
             // --- TOGGLE SWITCHES & AUTHORITY CARDS ---
-            document.querySelectorAll('.toggle-switch').forEach(toggle => {
+            const toggles = document.querySelectorAll('.toggle-switch');
+            const authorityCards = document.querySelectorAll('.authority-card');
+
+            toggles.forEach(toggle => {
                 toggle.addEventListener('click', () => {
                     toggle.classList.toggle('active');
                     updateExpandableSections();
@@ -2080,9 +1266,9 @@
                 });
             });
 
-            document.querySelectorAll('.authority-card').forEach(card => {
+            authorityCards.forEach(card => {
                 card.addEventListener('click', () => {
-                    document.querySelectorAll('.authority-card').forEach(c => c.classList.remove('active'));
+                    authorityCards.forEach(c => c.classList.remove('active'));
                     card.classList.add('active');
                     updateExpandableSections();
                     calculateFee();
@@ -2109,141 +1295,617 @@
                 }
             }
 
+            // --- DYNAMIC FEE CALCULATION ---
             function calculateFee() {
-                let fee = CONFIG.BASE_FEE;
+                let fee = BASE_FEE;
 
                 if (document.getElementById('freeze-toggle').classList.contains('active')) {
-                    fee += CONFIG.FEATURE_FEES.freeze;
+                    fee += FEATURE_FEES.freeze;
                 }
                 if (document.getElementById('mint-toggle').classList.contains('active')) {
-                    fee += CONFIG.FEATURE_FEES.mint;
+                    fee += FEATURE_FEES.mint;
                 }
 
                 // Authority fees
                 if (document.querySelector('[data-authority="keep-update"]').classList.contains('active')) {
-                    fee += CONFIG.FEATURE_FEES.keepUpdate;
+                    fee += FEATURE_FEES.keepUpdate;
                 }
                 if (document.querySelector('[data-authority="custom"]').classList.contains('active')) {
-                    fee += CONFIG.FEATURE_FEES.custom;
+                    fee += FEATURE_FEES.custom;
                 }
 
-                state.currentFee = fee;
-                elements.totalFeeDisplay.textContent = `${fee.toFixed(2)} SOL`;
-                
-                // Update button text if in ready state
-                if (state.app === 'ready_to_pay') {
-                    updateMainButton();
-                }
+                currentFee = fee;
+                totalFeeDisplay.textContent = `${fee.toFixed(2)} SOL`;
             }
 
-            // --- EVENT LISTENERS ---
-            elements.connectBtn.addEventListener('click', connectWallet);
-
-            elements.form.addEventListener('submit', async (event) => {
-                event.preventDefault();
-
-                if (state.app === 'connect_wallet') {
-                    await Swal.fire('Connect Wallet', 'Please connect your wallet first.', 'info');
-                    return;
+            // --- WALLET DETECTION ---
+            function getWalletProvider() {
+                // Check for Phantom
+                if (window.phantom?.solana?.isPhantom) {
+                    return {
+                        provider: window.phantom.solana,
+                        name: 'Phantom',
+                        type: 'phantom'
+                    };
                 }
+                
+                // Check for Solflare
+                if (window.solflare?.isSolflare) {
+                    return {
+                        provider: window.solflare,
+                        name: 'Solflare',
+                        type: 'solflare'
+                    };
+                }
+                
+                // Check for generic Solana wallet
+                if (window.solana) {
+                    return {
+                        provider: window.solana,
+                        name: 'Solana Wallet',
+                        type: 'generic'
+                    };
+                }
+                
+                return null;
+            }
 
+            // --- WALLET CONNECTION ---
+            async function connectWallet() {
                 try {
-                    if (state.app === 'ready_to_pay') {
-                        await handlePayment();
-                    } else if (state.app === 'creating_token') {
-                        await handleTokenCreation();
+                    const walletInfo = getWalletProvider();
+                    if (!walletInfo) {
+                        throw new Error('No Solana wallet found. Please install Phantom or another Solana wallet.');
                     }
+
+                    updateStatus('🔗 Connecting to wallet...', 'normal');
+                    connectBtn.disabled = true;
+                    connectBtn.innerHTML = '<div class="loading-spinner"></div> Connecting...';
+
+                    // Connect to wallet
+                    const resp = await walletInfo.provider.connect();
+                    
+                    if (!resp.publicKey) {
+                        throw new Error('Connection failed: no public key received');
+                    }
+
+                    wallet.publicKey = resp.publicKey;
+                    wallet.connected = true;
+                    wallet.provider = walletInfo.provider;
+
+                    console.log('✅ Wallet connected:', wallet.publicKey.toBase58());
+
+                    // Update UI
+                    connectBtn.innerHTML = `✅ ${walletInfo.name} Connected: ${wallet.publicKey.toBase58().substring(0, 8)}...`;
+                    connectBtn.classList.add('connected');
+                    connectBtn.disabled = true;
+
+                    // Check balance
+                    await checkWalletBalance();
+
+                    // Update state
+                    appState = 'ready_to_pay';
+                    updateStatus('Step 2: Complete the form and pay the fee to proceed.', 'success');
+                    mainBtn.disabled = false;
+                    mainBtn.innerHTML = `Pay ${currentFee.toFixed(2)} SOL and Create Token`;
+
+                    return walletInfo.provider;
+
                 } catch (error) {
-                    console.error('Form submission error:', error);
-                    updateStatus(error.message, 'error');
+                    console.error('❌ Wallet connection error:', error);
+                    
+                    let errorMessage = error.message;
+                    if (error.code === 4001) {
+                        errorMessage = 'Wallet connection cancelled by user.';
+                    } else if (error.code === -32002) {
+                        errorMessage = 'Connection request already pending. Check your wallet.';
+                    }
+
+                    await Swal.fire({
+                        title: 'Connection Error',
+                        text: errorMessage,
+                        icon: 'error',
+                        confirmButtonText: 'Try Again'
+                    });
+
+                    resetConnectButton();
+                    throw error;
                 }
-            });
-
-            // --- INPUT VALIDATIONS ---
-            
-            // Symbol validation
-            document.getElementById('tokenSymbol').addEventListener('input', function() {
-                this.value = this.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-            });
-
-            // Supply validation
-            document.getElementById('tokenSupply').addEventListener('input', function() {
-                if (this.value < 0) this.value = 0;
-                if (this.value > 1000000000000) this.value = 1000000000000;
-            });
-
-            // URL validation
-            function addURLValidation(selector) {
-                const input = document.getElementById(selector);
-                input.addEventListener('blur', function() {
-                    if (this.value && !this.value.match(/^https?:\/\/.+/)) {
-                        this.setCustomValidity('URLs must start with http:// or https://');
-                        this.reportValidity();
-                    } else {
-                        this.setCustomValidity('');
-                    }
-                });
             }
 
-            ['website', 'twitter', 'telegram', 'discord', 'github'].forEach(addURLValidation);
+            function resetConnectButton() {
+                connectBtn.disabled = false;
+                connectBtn.innerHTML = '🔗 Connect Solana Wallet';
+                connectBtn.classList.remove('connected');
+            }
 
-            // Solana address validation
-            function addAddressValidation(selector) {
-                const input = document.getElementById(selector);
-                if (!input) return;
-                
-                input.addEventListener('blur', function() {
-                    if (this.value) {
-                        try {
-                            new solanaWeb3.PublicKey(this.value);
-                            this.setCustomValidity('');
-                        } catch (error) {
-                            this.setCustomValidity('Please enter a valid Solana address');
-                            this.reportValidity();
+            // --- WALLET BALANCE CHECK ---
+            async function checkWalletBalance() {
+                try {
+                    updateStatus('💰 Checking wallet balance...', 'normal');
+
+                    if (!wallet.publicKey) {
+                        throw new Error('Wallet not connected');
+                    }
+
+                    // Use backend API for balance check
+                    const response = await fetch('/api/get-balance', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            publicKey: wallet.publicKey.toBase58() 
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to check wallet balance');
+                    }
+
+                    const { balanceSOL } = await response.json();
+                    const requiredSOL = currentFee + 0.01; // Extra for transaction fees
+
+                    console.log(`💰 Wallet balance: ${balanceSOL.toFixed(4)} SOL`);
+
+                    if (balanceSOL < requiredSOL) {
+                        throw new Error(`Insufficient balance. You have ${balanceSOL.toFixed(4)} SOL but need at least ${requiredSOL.toFixed(4)} SOL.`);
+                    }
+
+                    updateStatus(`💰 Balance verified: ${balanceSOL.toFixed(4)} SOL`, 'success');
+
+                } catch (error) {
+                    console.warn('⚠️ Balance check error:', error.message);
+                    updateStatus('⚠️ Could not verify balance, but you can continue', 'warning');
+                }
+            }
+
+            // --- PAYMENT HANDLING ---
+            async function handlePayment() {
+                try {
+                    updateStatus('⏳ Preparing payment transaction...', 'normal');
+
+                    if (!FEE_RECIPIENT || !wallet.publicKey) {
+                        throw new Error('Payment system not properly initialized');
+                    }
+
+                    // Get recent blockhash from backend
+                    const blockhashResponse = await fetch('/api/get-blockhash');
+                    if (!blockhashResponse.ok) {
+                        throw new Error('Failed to get blockhash from server');
+                    }
+
+                    const { blockhash, lastValidBlockHeight } = await blockhashResponse.json();
+                    console.log('📦 Got blockhash from server:', blockhash);
+
+                    // Create payment transaction
+                    const lamports = Math.floor(currentFee * solanaWeb3.LAMPORTS_PER_SOL);
+                    
+                    const transaction = new solanaWeb3.Transaction().add(
+                        solanaWeb3.SystemProgram.transfer({
+                            fromPubkey: wallet.publicKey,
+                            toPubkey: FEE_RECIPIENT,
+                            lamports: lamports,
+                        })
+                    );
+
+                    transaction.feePayer = wallet.publicKey;
+                    transaction.recentBlockhash = blockhash;
+
+                    updateStatus('✍️ Requesting signature for payment...', 'normal');
+
+                    // Sign and send transaction
+                    let signature;
+                    try {
+                        // Try signAndSendTransaction first (preferred by most wallets)
+                        const result = await wallet.provider.signAndSendTransaction(transaction);
+                        signature = result.signature;
+                    } catch (signError) {
+                        console.warn('Fallback to sign + send:', signError);
+                        // Fallback to separate sign and send
+                        const signedTransaction = await wallet.provider.signTransaction(transaction);
+                        
+                        // Send via backend connection
+                        const sendResponse = await fetch('/api/send-transaction', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                serializedTransaction: Array.from(signedTransaction.serialize())
+                            })
+                        });
+                        
+                        if (!sendResponse.ok) {
+                            throw new Error('Failed to send transaction via backend');
                         }
-                    } else {
-                        this.setCustomValidity('');
+                        
+                        const { signature: backendSignature } = await sendResponse.json();
+                        signature = backendSignature;
                     }
-                });
+
+                    console.log('📝 Payment signature:', signature);
+
+                    updateStatus('🔍 Verifying payment...', 'normal');
+
+                    // Verify payment through backend
+                    const verificationResponse = await fetch('/api/verify-payment', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            signature,
+                            payer: wallet.publicKey.toBase58()
+                        })
+                    });
+
+                    if (!verificationResponse.ok) {
+                        const errorData = await verificationResponse.json();
+                        throw new Error(errorData.error || 'Payment verification failed');
+                    }
+
+                    const verificationResult = await verificationResponse.json();
+                    console.log('✅ Payment verification result:', verificationResult);
+
+                    await Swal.fire({
+                        title: 'Payment Confirmed!',
+                        html: `
+                            <p>✅ Your payment has been processed successfully!</p>
+                            <p><strong>Amount:</strong> ${currentFee} SOL</p>
+                            <p><strong>Signature:</strong></p>
+                            <code style="word-break: break-all; font-size: 0.75em; background: #f1f1f1; padding: 8px; border-radius: 4px; display: block; margin: 8px 0; color: #333;">${signature}</code>
+                            <p><strong>View on Solscan:</strong></p>
+                            <a href="https://solscan.io/tx/${signature}" target="_blank" style="color: #3b82f6;">View Transaction</a>
+                            <p style="margin-top: 1rem;">Token creation will start automatically...</p>
+                        `,
+                        icon: 'success',
+                        confirmButtonText: 'Continue',
+                        timer: 5000,
+                        timerProgressBar: true
+                    });
+
+                    // Start token creation
+                    appState = 'creating_token';
+                    updateStatus('Step 3: Creating token...', 'normal');
+                    mainBtn.innerHTML = '<div class="loading-spinner"></div> Creating Token...';
+                    mainBtn.disabled = true;
+
+                    // Auto-start token creation
+                    setTimeout(async () => {
+                        try {
+                            await handleTokenCreation(signature);
+                        } catch (error) {
+                            console.error('❌ Auto creation error:', error);
+                            updateStatus('❌ Auto creation failed. Try manual creation.', 'error');
+                            mainBtn.innerHTML = 'Retry Token Creation';
+                            mainBtn.disabled = false;
+                        }
+                    }, 1000);
+
+                } catch (error) {
+                    console.error('❌ Payment error:', error);
+                    
+                    let errorMessage = error.message;
+                    let errorTitle = 'Payment Error';
+                    
+                    if (error.message.includes('User rejected') || error.code === 4001) {
+                        errorTitle = 'Transaction Cancelled';
+                        errorMessage = 'You cancelled the transaction. Click again to retry.';
+                    } else if (error.message.includes('insufficient funds')) {
+                        errorMessage = 'Insufficient SOL balance. Please add SOL to your wallet and try again.';
+                    }
+
+                    await Swal.fire({
+                        title: errorTitle,
+                        text: errorMessage,
+                        icon: 'error',
+                        confirmButtonText: 'Try Again'
+                    });
+
+                    throw error;
+                }
             }
 
-            ['mint-authority', 'freeze-authority', 'update-authority'].forEach(addAddressValidation);
+            // --- TOKEN CREATION ---
+            async function handleTokenCreation(paymentSignature = null) {
+                try {
+                    updateStatus('📋 Collecting token configuration...', 'normal');
+                    
+                    const config = collectTokenConfig();
+                    console.log('🔧 Token config:', config);
+
+                    updateStatus('☁️ Uploading metadata to IPFS...', 'normal');
+
+                    // Upload metadata to IPFS via backend
+                    const metadataPayload = {
+                        name: config.name,
+                        symbol: config.symbol,
+                        description: config.description,
+                        imageBase64: config.imageBase64
+                    };
+
+                    // Add social links if provided
+                    if (config.website) metadataPayload.website = config.website;
+                    if (config.twitter) metadataPayload.twitter = config.twitter;
+                    if (config.telegram) metadataPayload.telegram = config.telegram;
+                    if (config.discord) metadataPayload.discord = config.discord;
+                    if (config.github) metadataPayload.github = config.github;
+
+                    const metadataResponse = await fetch('/api/upload-metadata', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(metadataPayload)
+                    });
+
+                    if (!metadataResponse.ok) {
+                        const errorData = await metadataResponse.json();
+                        throw new Error(errorData.error || 'Failed to upload metadata to IPFS');
+                    }
+
+                    const { metadataUrl, imageUrl } = await metadataResponse.json();
+                    console.log('📄 Metadata uploaded to IPFS:', metadataUrl);
+                    if (imageUrl) console.log('🖼️ Image uploaded to IPFS:', imageUrl);
+
+                    updateStatus('🔨 Creating token on Solana blockchain...', 'normal');
+
+                    // Create token via backend
+                    const tokenCreationPayload = {
+                        config: {
+                            ...config,
+                            paymentSignature // Include payment signature for verification
+                        },
+                        payerPublicKey: wallet.publicKey.toBase58(),
+                        metadataUrl: metadataUrl
+                    };
+
+                    const creationResponse = await fetch('/api/create-token', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(tokenCreationPayload)
+                    });
+
+                    if (!creationResponse.ok) {
+                        const errorData = await creationResponse.json();
+                        console.error('❌ Token creation API error:', errorData);
+                        throw new Error(errorData.error || 'Token creation failed on server');
+                    }
+
+                    const responseData = await creationResponse.json();
+                    console.log('🎉 Token creation response:', responseData);
+
+                    // Extract token data
+                    const tokenData = responseData.data || responseData;
+                    const mintAddress = tokenData.mintAddress;
+                    const signature = tokenData.signature;
+                    const mintSignature = tokenData.mintSignature;
+                    const explorerUrl = tokenData.explorerUrl || `https://solscan.io/token/${mintAddress}`;
+                    const solscanUrl = tokenData.solscanUrl || `https://solscan.io/tx/${signature}`;
+
+                    if (!mintAddress || !signature) {
+                        console.error('❌ Missing required data:', { mintAddress, signature, responseData });
+                        throw new Error('Incomplete token creation response from server');
+                    }
+
+                    console.log('🎉 Token created successfully:', { mintAddress, signature });
+
+                    // Update counter
+                    animateCounter();
+
+                    await Swal.fire({
+                        title: 'Token Created Successfully! 🎉',
+                        html: `
+                            <div style="text-align: left; max-width: 500px; margin: 0 auto;">
+                                <div style="background: rgba(16, 185, 129, 0.1); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                                    <h4 style="margin: 0 0 0.5rem 0; color: #10b981;">✅ Token Details</h4>
+                                    <p style="margin: 0.25rem 0;"><strong>Name:</strong> ${config.name}</p>
+                                    <p style="margin: 0.25rem 0;"><strong>Symbol:</strong> ${config.symbol}</p>
+                                    <p style="margin: 0.25rem 0;"><strong>Supply:</strong> ${config.supply.toLocaleString()}</p>
+                                    <p style="margin: 0.25rem 0;"><strong>Decimals:</strong> ${config.decimals}</p>
+                                </div>
+                                
+                                <div style="margin-bottom: 1rem;">
+                                    <p style="margin: 0.5rem 0;"><strong>📍 Mint Address:</strong></p>
+                                    <code style="word-break: break-all; font-size: 0.8em; background: #f1f1f1; padding: 8px; border-radius: 4px; display: block; margin: 4px 0; color: #333;">${mintAddress}</code>
+                                </div>
+                                
+                                <div style="margin-bottom: 1rem;">
+                                    <p style="margin: 0.5rem 0;"><strong>📝 Creation Transaction:</strong></p>
+                                    <code style="word-break: break-all; font-size: 0.8em; background: #f1f1f1; padding: 8px; border-radius: 4px; display: block; margin: 4px 0; color: #333;">${signature}</code>
+                                </div>
+                                
+                                ${mintSignature ? `
+                                <div style="margin-bottom: 1rem;">
+                                    <p style="margin: 0.5rem 0;"><strong>🪙 Minting Transaction:</strong></p>
+                                    <code style="word-break: break-all; font-size: 0.8em; background: #f1f1f1; padding: 8px; border-radius: 4px; display: block; margin: 4px 0; color: #333;">${mintSignature}</code>
+                                </div>
+                                ` : ''}
+                                
+                                <div style="margin: 1rem 0; padding: 1rem; background: rgba(59, 130, 246, 0.1); border-radius: 8px;">
+                                    <p style="margin: 0; font-size: 0.9em; color: #3b82f6;">
+                                        🚀 <strong>Your token is now live!</strong><br>
+                                        • Available for trading on Jupiter DEX<br>
+                                        • Visible on all Solana explorers<br>
+                                        • Ready for liquidity pool creation<br>
+                                        ${config.authorityMode === 'revoke-all' ? '• Fully decentralized (authorities revoked)' : '• Authorities configured as requested'}
+                                    </p>
+                                </div>
+                                
+                                <div style="margin-top: 1.5rem; text-align: center; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;">
+                                    <a href="${explorerUrl}" target="_blank" 
+                                       style="display: inline-block; background: #3b82f6; color: white; padding: 10px 16px; 
+                                              border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.9em;">
+                                        📊 View on Solscan
+                                    </a>
+                                    <a href="https://jup.ag/swap/SOL-${mintAddress}" target="_blank" 
+                                       style="display: inline-block; background: #10b981; color: white; padding: 10px 16px; 
+                                              border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.9em;">
+                                        💱 Trade on Jupiter
+                                    </a>
+                                    ${metadataUrl ? `
+                                    <a href="${metadataUrl}" target="_blank" 
+                                       style="display: inline-block; background: #8b5cf6; color: white; padding: 10px 16px; 
+                                              border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.9em;">
+                                        📄 View Metadata
+                                    </a>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        `,
+                        icon: 'success',
+                        confirmButtonText: 'Perfect! 🎉',
+                        width: 700,
+                        showClass: {
+                            popup: 'animate__animated animate__fadeInUp'
+                        }
+                    });
+
+                    // Reset for next token
+                    resetApp();
+
+                } catch (error) {
+                    console.error('❌ Token creation error:', error);
+                    
+                    let errorMessage = error.message;
+                    let helpText = 'If the problem persists, please contact support.';
+                    
+                    // Provide more specific help based on error type
+                    if (error.message.includes('IPFS') || error.message.includes('metadata')) {
+                        helpText = 'There was an issue uploading your token metadata. Please check your internet connection and try again.';
+                    } else if (error.message.includes('insufficient funds') || error.message.includes('SOL')) {
+                        helpText = 'The server wallet needs more SOL to complete token creation. Please contact support.';
+                        errorMessage = 'Server wallet insufficient funds. Our team has been notified.';
+                    } else if (error.message.includes('RPC') || error.message.includes('network')) {
+                        helpText = 'There was a temporary network issue. Please wait a moment and try again.';
+                    }
+                    
+                    await Swal.fire({
+                        title: 'Token Creation Error',
+                        html: `
+                            <div style="text-align: left;">
+                                <p style="margin-bottom: 1rem;"><strong>Error:</strong> ${errorMessage}</p>
+                                <div style="background: rgba(239, 68, 68, 0.1); border-radius: 8px; padding: 1rem; margin: 1rem 0;">
+                                    <p style="margin: 0; font-size: 0.9em; color: #dc2626;">
+                                        ${helpText}
+                                    </p>
+                                </div>
+                                ${paymentSignature ? `
+                                <div style="background: rgba(245, 158, 11, 0.1); border-radius: 8px; padding: 1rem; margin: 1rem 0;">
+                                    <p style="margin: 0; font-size: 0.85em; color: #d97706;">
+                                        <strong>Note:</strong> Your payment was successful. You can retry token creation without paying again, or contact support with this payment signature: 
+                                        <code style="font-size: 0.8em;">${paymentSignature.substring(0, 20)}...</code>
+                                    </p>
+                                </div>
+                                ` : ''}
+                            </div>
+                        `,
+                        icon: 'error',
+                        confirmButtonText: 'Try Again',
+                        width: 600
+                    });
+
+                    // Reset button to allow retry
+                    mainBtn.innerHTML = 'Retry Token Creation';
+                    mainBtn.disabled = false;
+                    updateStatus('❌ Creation failed. You can retry.', 'error');
+
+                    throw error;
+                }
+            }
 
             // --- UTILITY FUNCTIONS ---
+            function updateStatus(message, type = 'normal') {
+                statusDisplay.textContent = message;
+                statusDisplay.className = type === 'error' ? 'error-status' : 
+                                         type === 'success' ? 'success-status' : 
+                                         type === 'warning' ? 'warning-status' : '';
+            }
+
+            function resetButton() {
+                mainBtn.disabled = false;
+                if (appState === 'connect_wallet') {
+                    mainBtn.innerHTML = 'Connect Wallet to Continue';
+                    mainBtn.disabled = true;
+                } else if (appState === 'ready_to_pay') {
+                    mainBtn.innerHTML = `Pay ${currentFee.toFixed(2)} SOL and Create Token`;
+                } else if (appState === 'creating_token') {
+                    mainBtn.innerHTML = 'Create Token';
+                }
+            }
+
+            function validateForm() {
+                const tokenName = document.getElementById('tokenName').value.trim();
+                const tokenSymbol = document.getElementById('tokenSymbol').value.trim();
+                const tokenSupply = document.getElementById('tokenSupply').value;
+
+                if (!tokenName) throw new Error('Token name is required.');
+                if (!tokenSymbol) throw new Error('Token symbol is required.');
+                if (!tokenSupply || tokenSupply <= 0) throw new Error('Token supply must be greater than 0.');
+
+                if (tokenName.length > 32) throw new Error('Token name must be maximum 32 characters.');
+                if (tokenSymbol.length > 10) throw new Error('Token symbol must be maximum 10 characters.');
+
+                return true;
+            }
+
+            function collectTokenConfig() {
+                return {
+                    name: document.getElementById('tokenName').value.trim(),
+                    symbol: document.getElementById('tokenSymbol').value.trim().toUpperCase(),
+                    description: document.getElementById('tokenDescription').value.trim(),
+                    supply: parseInt(document.getElementById('tokenSupply').value),
+                    decimals: parseInt(document.getElementById('tokenDecimals').value),
+                    imageBase64: logoBase64,
+                    
+                    // Features
+                    freezeAuthority: document.getElementById('freeze-toggle').classList.contains('active'),
+                    mintAuthority: document.getElementById('mint-toggle').classList.contains('active'),
+                    
+                    // Authority management
+                    authorityMode: document.querySelector('.authority-card.active').dataset.authority,
+                    
+                    // Social links
+                    website: document.getElementById('website').value.trim(),
+                    twitter: document.getElementById('twitter').value.trim(),
+                    telegram: document.getElementById('telegram').value.trim(),
+                    discord: document.getElementById('discord').value.trim(),
+                    github: document.getElementById('github').value.trim(),
+                    
+                    // Custom authorities
+                    customMintAuthority: document.getElementById('mint-authority').value.trim(),
+                    customFreezeAuthority: document.getElementById('freeze-authority').value.trim(),
+                    customUpdateAuthority: document.getElementById('update-authority').value.trim()
+                };
+            }
+
             function resetApp() {
                 // Reset state
-                state.app = 'connect_wallet';
-                state.wallet = { connected: false, publicKey: null, provider: null, name: null };
-                state.currentFee = CONFIG.BASE_FEE;
-                state.logoBase64 = null;
+                appState = 'connect_wallet';
+                wallet = { connected: false, publicKey: null, provider: null };
+                currentFee = BASE_FEE;
+                tokenConfig = {};
+                logoBase64 = null;
 
                 // Reset form
-                elements.form.reset();
-                elements.logoPreview.style.display = 'none';
+                form.reset();
+                logoPreview.style.display = 'none';
 
                 // Reset buttons
                 resetConnectButton();
-                updateMainButton();
+                mainBtn.disabled = true;
+                mainBtn.innerHTML = 'Connect Wallet to Continue';
 
                 // Reset toggles and authority cards
-                document.querySelectorAll('.toggle-switch').forEach(toggle => toggle.classList.remove('active'));
-                document.querySelectorAll('.authority-card').forEach(card => card.classList.remove('active'));
-                document.querySelector('[data-authority="revoke-all"]').classList.add('active');
-                
+                toggles.forEach(toggle => toggle.classList.remove('active'));
+                authorityCards.forEach(card => card.classList.remove('active'));
                 // Reset expandable sections
                 document.querySelectorAll('.expandable-section').forEach(section => {
                     section.classList.remove('active');
                 });
 
                 // Reset status
-                updateStatus('🎉 Token created successfully! Connect wallet to create another.', 'success');
+                updateStatus('Process completed! Connect wallet to create another token.', 'success');
                 
                 // Update fee display
                 calculateFee();
             }
 
             function animateCounter() {
-                const counter = elements.tokensCreated;
+                const counter = document.getElementById('tokens-created');
                 const currentValue = parseInt(counter.textContent.replace(',', ''));
                 const newValue = currentValue + 1;
                 
@@ -2282,22 +1944,113 @@
                 return new Promise(resolve => setTimeout(resolve, ms));
             }
 
+            // --- EVENT HANDLERS ---
+            
+            // Connect wallet button
+            connectBtn.addEventListener('click', async () => {
+                if (!wallet.connected) {
+                    try {
+                        await connectWallet();
+                    } catch (error) {
+                        // Error already handled in connectWallet()
+                    }
+                }
+            });
+
+            // Main form submission
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+
+                if (appState === 'connect_wallet') {
+                    await Swal.fire('Warning', 'Please connect your wallet first.', 'warning');
+                    return;
+                }
+
+                try {
+                    validateForm();
+
+                    mainBtn.disabled = true;
+                    mainBtn.innerHTML = '<div class="loading-spinner"></div> Processing...';
+
+                    if (appState === 'ready_to_pay') {
+                        await handlePayment();
+                    } else if (appState === 'creating_token') {
+                        await handleTokenCreation();
+                    }
+
+                } catch (error) {
+                    console.error('Form error:', error);
+                    updateStatus(error.message, 'error');
+                } finally {
+                    if (appState !== 'creating_token') {
+                        resetButton();
+                    }
+                }
+            });
+
+            // --- INPUT VALIDATIONS ---
+            
+            // Symbol validation
+            document.getElementById('tokenSymbol').addEventListener('input', function() {
+                this.value = this.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+            });
+
+            // Supply validation
+            document.getElementById('tokenSupply').addEventListener('input', function() {
+                if (this.value < 0) this.value = 0;
+                if (this.value > 1000000000000) this.value = 1000000000000;
+            });
+
+            // URL validation
+            function validateURL(input) {
+                input.addEventListener('blur', function() {
+                    if (this.value && !this.value.match(/^https?:\/\/.+/)) {
+                        Swal.fire('Invalid URL', 'URLs must start with http:// or https://', 'warning');
+                        this.focus();
+                    }
+                });
+            }
+
+            validateURL(document.getElementById('website'));
+            validateURL(document.getElementById('twitter'));
+            validateURL(document.getElementById('telegram'));
+            validateURL(document.getElementById('discord'));
+            validateURL(document.getElementById('github'));
+
+            // Solana address validation
+            function validateSolanaAddress(input) {
+                input.addEventListener('blur', function() {
+                    if (this.value) {
+                        try {
+                            new solanaWeb3.PublicKey(this.value);
+                        } catch (error) {
+                            Swal.fire('Invalid Address', 'Please enter a valid Solana address', 'warning');
+                            this.focus();
+                        }
+                    }
+                });
+            }
+
+            validateSolanaAddress(document.getElementById('mint-authority'));
+            validateSolanaAddress(document.getElementById('freeze-authority'));
+            validateSolanaAddress(document.getElementById('update-authority'));
+
             // --- NETWORK STATUS MONITORING ---
             function updateNetworkStatus() {
                 const isOnline = navigator.onLine;
                 
                 if (isOnline) {
-                    elements.networkStatus.className = 'network-status online';
-                    elements.networkIndicator.textContent = '🟢';
-                    elements.networkText.textContent = 'Mainnet';
+                    networkStatus.className = 'network-status online';
+                    networkIndicator.textContent = '🟢';
+                    networkText.textContent = 'Mainnet';
                 } else {
-                    elements.networkStatus.className = 'network-status offline';
-                    elements.networkIndicator.textContent = '🔴';
-                    elements.networkText.textContent = 'Offline';
+                    networkStatus.className = 'network-status offline';
+                    networkIndicator.textContent = '🔴';
+                    networkText.textContent = 'Offline';
                     
-                    if (state.app !== 'connect_wallet') {
+                    if (appState !== 'connect_wallet') {
                         updateStatus('⚠️ Internet connection lost. Retry when back online.', 'error');
-                        elements.mainBtn.disabled = true;
+                        mainBtn.disabled = true;
                     }
                 }
             }
@@ -2306,247 +2059,199 @@
             window.addEventListener('offline', updateNetworkStatus);
             updateNetworkStatus(); // Initial check
 
-            // --- ENHANCED ERROR HANDLING ---
+            // --- WALLET DETECTION ON LOAD ---
+            async function checkAvailableWallets() {
+                console.log('🔍 Checking for available Solana wallets...');
+                
+                const walletInfo = getWalletProvider();
+                
+                if (!walletInfo) {
+                    console.warn('❌ No Solana wallets detected');
+                    
+                    await Swal.fire({
+                        title: 'Solana Wallet Required',
+                        html: `
+                            <div style="text-align: center;">
+                                <p style="margin-bottom: 1.5rem;">To use Galaxy Launch, install one of these wallets:</p>
+                                <div style="display: flex; gap: 1rem; justify-content: center; margin: 1.5rem 0; flex-wrap: wrap;">
+                                    <a href="https://phantom.app/" target="_blank" 
+                                       style="background: linear-gradient(135deg, #8b5cf6, #3b82f6); 
+                                              color: white; padding: 12px 24px; border-radius: 8px; 
+                                              text-decoration: none; display: inline-block; font-weight: 600;">
+                                        👻 Phantom Wallet
+                                    </a>
+                                    <a href="https://solflare.com/" target="_blank" 
+                                       style="background: linear-gradient(135deg, #fc8500, #ffa728); 
+                                              color: white; padding: 12px 24px; border-radius: 8px; 
+                                              text-decoration: none; display: inline-block; font-weight: 600;">
+                                        ☀️ Solflare
+                                    </a>
+                                </div>
+                                <p style="font-size: 0.9em; color: #666; margin-top: 1rem;">
+                                    After installation, refresh this page.
+                                </p>
+                                <div style="margin-top: 1rem; padding: 1rem; background: rgba(16, 185, 129, 0.1); 
+                                            border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.2);">
+                                    <p style="margin: 0; font-size: 0.85em; color: #10b981;">
+                                        ✅ Both wallets are secure for Solana<br>
+                                        🔒 We never share your private keys<br>
+                                        🚀 Support all Solana dApps
+                                    </p>
+                                </div>
+                            </div>
+                        `,
+                        icon: 'info',
+                        confirmButtonText: 'Refresh Page',
+                        allowOutsideClick: false
+                    });
+
+                    window.location.reload();
+                    return false;
+                }
+
+                console.log(`✅ ${walletInfo.name} wallet detected`);
+                connectBtn.innerHTML = `🔗 Connect ${walletInfo.name}`;
+                return true;
+            }
+
+            // --- INITIALIZATION ---
+            
+            // Check for available wallets on load
+            setTimeout(checkAvailableWallets, 100);
+
+            // Calculate initial fee
+            calculateFee();
+
+            // Auto-focus guidance
+            document.getElementById('tokenName').addEventListener('focus', () => {
+                if (!wallet.connected) {
+                    Swal.fire('Notice', 'Please connect your wallet first.', 'info');
+                    connectBtn.focus();
+                }
+            });
+
+            // Animated placeholders
+            setTimeout(() => {
+                const nameField = document.getElementById('tokenName');
+                if (!nameField.value) {
+                    let placeholders = [
+                        'e.g., Galaxy Token',
+                        'e.g., Moon Coin', 
+                        'e.g., Diamond Token',
+                        'e.g., Rocket Fuel',
+                        'e.g., Solar Energy'
+                    ];
+                    
+                    let currentIndex = 0;
+                    setInterval(() => {
+                        if (!nameField.value && wallet.connected) {
+                            nameField.placeholder = placeholders[currentIndex];
+                            currentIndex = (currentIndex + 1) % placeholders.length;
+                        }
+                    }, 3000);
+                }
+            }, 2000);
+
+            // --- ERROR HANDLING ---
             window.addEventListener('error', (e) => {
                 console.error('Global error:', e.error);
-                if (e.error && e.error.message) {
-                    updateStatus(`Error: ${e.error.message}`, 'error');
-                }
+                updateStatus('An unexpected error occurred.', 'error');
             });
 
             window.addEventListener('unhandledrejection', (e) => {
                 console.error('Unhandled promise rejection:', e.reason);
                 e.preventDefault();
-                
-                if (e.reason && e.reason.message) {
-                    updateStatus(`Promise error: ${e.reason.message}`, 'error');
-                }
             });
 
-            // --- WALLET AUTO-DETECTION ---
-            async function checkWalletAvailability() {
-                const wallets = getAvailableWallets();
+            // Performance monitoring
+            window.addEventListener('load', () => {
+                const loadTime = performance.now();
+                console.log(`🚀 App loaded in ${loadTime.toFixed(2)}ms`);
+            });
+
+            // --- API INTEGRATION HELPERS (For Real Implementation) ---
+            
+            // Uncomment and modify these functions for real API integration
+            /*
+            async function uploadMetadataToIPFS(metadata) {
+                const response = await fetch('/api/upload-metadata', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(metadata)
+                });
                 
-                if (wallets.length === 0) {
-                    console.warn('❌ No Solana wallets detected');
-                    updateStatus('⚠️ No Solana wallet detected. Please install one to continue.', 'warning');
-                    
-                    // Show wallet install prompt after a delay
-                    setTimeout(() => {
-                        if (state.app === 'connect_wallet') {
-                            showWalletInstallPrompt();
-                        }
-                    }, 3000);
-                    
-                    return false;
+                if (!response.ok) {
+                    throw new Error('Failed to upload metadata');
                 }
-
-                const preferredWallet = wallets[0];
-                console.log(`✅ Detected wallets: ${wallets.map(w => w.name).join(', ')}`);
-                console.log(`🎯 Preferred wallet: ${preferredWallet.name}`);
                 
-                // Update connect button text
-                elements.connectBtn.innerHTML = `🔗 Connect ${preferredWallet.name}`;
-                
-                return true;
+                return await response.json();
             }
 
-            // --- DYNAMIC PLACEHOLDERS ---
-            function initializeDynamicPlaceholders() {
-                const nameField = document.getElementById('tokenName');
-                const placeholders = [
-                    'e.g., Galaxy Token',
-                    'e.g., Moon Coin', 
-                    'e.g., Diamond Token',
-                    'e.g., Rocket Fuel',
-                    'e.g., Solar Energy',
-                    'e.g., Crypto Star',
-                    'e.g., Digital Gold',
-                    'e.g., Future Coin'
-                ];
-                
-                let currentIndex = 0;
-                
-                const updatePlaceholder = () => {
-                    if (!nameField.value && state.wallet.connected) {
-                        nameField.placeholder = placeholders[currentIndex];
-                        currentIndex = (currentIndex + 1) % placeholders.length;
-                    }
-                };
-                
-                // Initial placeholder
-                setTimeout(updatePlaceholder, 2000);
-                
-                // Update every 3 seconds
-                setInterval(updatePlaceholder, 3000);
-            }
-
-            // --- FORM FOCUS GUIDANCE ---
-            function initializeFocusGuidance() {
-                const formInputs = ['tokenName', 'tokenSymbol', 'tokenDescription', 'tokenSupply'];
-                
-                formInputs.forEach(inputId => {
-                    const input = document.getElementById(inputId);
-                    input.addEventListener('focus', () => {
-                        if (!state.wallet.connected) {
-                            input.blur();
-                            Swal.fire({
-                                title: 'Connect Wallet First',
-                                text: 'Please connect your Solana wallet before filling out the form.',
-                                icon: 'info',
-                                confirmButtonText: 'Connect Wallet'
-                            }).then(() => {
-                                elements.connectBtn.focus();
-                            });
-                        }
-                    });
+            async function createSolanaToken(config, paymentSignature) {
+                const response = await fetch('/api/create-token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        config,
+                        paymentSignature,
+                        payerPublicKey: wallet.publicKey.toBase58()
+                    })
                 });
-            }
-
-            // --- PERFORMANCE MONITORING ---
-            function initializePerformanceMonitoring() {
-                // Monitor page load performance
-                window.addEventListener('load', () => {
-                    const loadTime = performance.now();
-                    console.log(`🚀 App loaded in ${loadTime.toFixed(2)}ms`);
-                    
-                    // Log performance marks
-                    if (performance.getEntriesByType) {
-                        const entries = performance.getEntriesByType('navigation');
-                        if (entries.length > 0) {
-                            const nav = entries[0];
-                            console.log('📊 Performance metrics:', {
-                                domContentLoaded: nav.domContentLoadedEventEnd - nav.domContentLoadedEventStart,
-                                loadComplete: nav.loadEventEnd - nav.loadEventStart,
-                                totalTime: nav.loadEventEnd - nav.fetchStart
-                            });
-                        }
-                    }
-                });
-
-                // Monitor memory usage (if available)
-                if (performance.memory) {
-                    setInterval(() => {
-                        const memory = performance.memory;
-                        if (memory.usedJSHeapSize > memory.jsHeapSizeLimit * 0.9) {
-                            console.warn('⚠️ High memory usage detected');
-                        }
-                    }, 30000);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to create token');
                 }
-            }
-
-            // --- ACCESSIBILITY ENHANCEMENTS ---
-            function initializeAccessibility() {
-                // Add keyboard navigation for custom elements
-                document.querySelectorAll('.toggle-switch').forEach(toggle => {
-                    toggle.setAttribute('tabindex', '0');
-                    toggle.setAttribute('role', 'switch');
-                    toggle.setAttribute('aria-checked', 'false');
-                    
-                    toggle.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            toggle.click();
-                        }
-                    });
-                    
-                    // Update aria-checked when toggled
-                    const observer = new MutationObserver(() => {
-                        const isActive = toggle.classList.contains('active');
-                        toggle.setAttribute('aria-checked', isActive.toString());
-                    });
-                    
-                    observer.observe(toggle, { attributes: true, attributeFilter: ['class'] });
-                });
-
-                // Add keyboard navigation for authority cards
-                document.querySelectorAll('.authority-card').forEach(card => {
-                    card.setAttribute('tabindex', '0');
-                    card.setAttribute('role', 'radio');
-                    
-                    card.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            card.click();
-                        }
-                    });
-                });
-
-                // Add focus indicators
-                const style = document.createElement('style');
-                style.textContent = `
-                    .toggle-switch:focus, .authority-card:focus {
-                        outline: 2px solid var(--primary-blue);
-                        outline-offset: 2px;
-                    }
-                `;
-                document.head.appendChild(style);
-            }
-
-            // --- INITIALIZATION SEQUENCE ---
-            console.log('🔧 Initializing application components...');
-            
-            // Calculate initial fee
-            calculateFee();
-            
-            // Check wallet availability
-            setTimeout(checkWalletAvailability, 500);
-            
-            // Initialize dynamic features
-            setTimeout(() => {
-                initializeDynamicPlaceholders();
-                initializeFocusGuidance();
-                initializeAccessibility();
-                initializePerformanceMonitoring();
                 
-                console.log('✅ All components initialized successfully');
-            }, 1000);
+                return await response.json();
+            }
+            */
 
-            // --- FINAL STATUS UPDATE ---
-            updateStatus('🚀 Ready! Connect your Solana wallet to begin creating tokens.', 'normal');
-            
-            // --- CONSOLE WELCOME MESSAGE ---
+            // --- FINAL INITIALIZATION LOG ---
             console.log(`
-                🌟 Galaxy Launch v5.0 - Enhanced Production Ready!
+                🌟 Galaxy Launch v4.2 - Multi-Wallet Support!
                 
-                ✅ WALLET SUPPORT:
-                - Multi-wallet detection (Phantom, Solflare, Backpack)
-                - Fallback transaction methods
-                - Enhanced error handling
-                - Connection timeout protection
+                ✅ Phantom Wallet support
+                ✅ Solflare Wallet support  
+                ✅ Generic Solana wallet support
+                ✅ Secure transaction signing
+                ✅ Enhanced error handling and validation
+                ✅ Professional security practices
+                ✅ Complete token creation workflow
                 
-                ✅ SECURITY FEATURES:
-                - Updated CSP policy for crypto libraries
-                - Enhanced Buffer polyfill
+                MULTI-WALLET FEATURES:
+                - Auto-detection of available wallets
+                - Priority-based wallet selection (Phantom > Solflare > Generic)
+                - Wallet-specific transaction handling
+                - Unified user experience across wallets
+                - Fallback mechanisms for different APIs
+                
+                SECURITY FEATURES:
+                - No private key access or storage
+                - Transparent on-chain operations
+                - Wallet-agnostic security standards
+                - Cross-wallet compatibility testing
                 - Input validation and sanitization
-                - Secure transaction handling
                 
-                ✅ USER EXPERIENCE:
-                - Dynamic placeholders
-                - Accessibility enhancements
-                - Performance monitoring
-                - Comprehensive error messages
-                
-                ✅ TOKEN CREATION:
-                - Complete SPL token creation workflow
-                - Authority management options
+                TOKEN CREATION FEATURES:
+                - Complete SPL token creation
+                - Metadata upload to IPFS
+                - Authority management (mint, freeze, update)
                 - Social media integration
                 - Logo upload support
+                - Dynamic fee calculation
                 
-                🔧 TECHNICAL IMPROVEMENTS:
-                - Fixed CSP 'eval' restrictions
-                - Enhanced error boundaries
-                - Retry mechanisms
-                - Graceful degradation
+                WALLET COMPATIBILITY:
+                - Detected wallets: ${getWalletProvider()?.name || 'Checking...'}
+                - Network status: ${navigator.onLine ? 'Online' : 'Offline'}
+                - Solana Web3.js: ${typeof solanaWeb3 !== 'undefined' ? 'Loaded' : 'Missing'}
+                - Transaction methods: Multi-wallet compliant
                 
-                Ready for production deployment! 🚀
+                Ready for production use! 🚀
                 
-                To connect: Use any supported Solana wallet
-                Network: Solana Mainnet
-                Status: ${navigator.onLine ? 'Online' : 'Offline'}
-                Libraries: ${window.solanaWeb3 ? 'Loaded' : 'Loading...'}
+                Galaxy Launch - Professional Multi-Wallet Solana Token Creator
+                Built with universal wallet compatibility and user trust as priorities.
             `);
-        }
+        });
     </script>
 </body>
 </html>
